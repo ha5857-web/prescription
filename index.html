@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>진료 차팅·처방 도구</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F5;--surface:#FFFFFF;--paper:#FBFCF9;--ink:#17232A;--muted:#5A6A71;--line:#D5DEDB;
+  --accent:#0E6B63;--accent-ink:#FFFFFF;--accent-weak:#E1EFEC;
+  --f-body:'IBM Plex Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-num:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1416;--surface:#152024;--paper:#111A1D;--ink:#E3ECEA;--muted:#93A5A9;--line:#29393E;
+  --accent:#4DBFB2;--accent-ink:#06201D;--accent-weak:#123230;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1416;--surface:#152024;--paper:#111A1D;--ink:#E3ECEA;--muted:#93A5A9;--line:#29393E;
+  --accent:#4DBFB2;--accent-ink:#06201D;--accent-weak:#123230;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);padding:28px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 22px;max-width:68ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+a.card{display:grid;gap:6px;align-content:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;color:inherit;text-decoration:none}
+a.card:hover{border-color:var(--accent)}
+a.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tag{justify-self:start;font-size:11.5px;font-weight:700;color:var(--accent);background:var(--accent-weak);border-radius:5px;padding:1px 8px}
+a.card h2{font-size:17px;margin:2px 0 0}
+a.card p{margin:0;color:var(--muted);font-size:13.5px}
+a.card ul{margin:2px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+.note{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:13.5px}
+.note h3{font-size:13px;margin:0 0 6px;color:var(--muted);letter-spacing:.04em}
+.note ul{margin:0;padding-left:18px}
+code{font:600 13px var(--f-num);background:var(--accent-weak);color:var(--accent);border-radius:4px;padding:0 5px}
+footer{margin-top:16px;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>진료 차팅·처방 도구</h1>
+  <p class="lede">증상을 체크하면 EMR 차트와 오더가 함께 만들어지는 외래 진료 보조 도구입니다. 소아는 체중으로, 성인은 신기능·임신·병용약·나이로 약과 용량을 정합니다.</p>
+  <div class="grid">
+    <a class="card" href="peds.html"><span class="tag">소아</span><h2>소아 차팅·처방</h2><p>증상 체크 → EMR 양식 v2 차트 + 체중별 오더 세트</p><ul><li>감기·호흡기, 구토·설사, 발열, 발진, 소변</li><li>블록 오더 순서 (0F → 1c → … → 9E)</li></ul></a>
+    <a class="card" href="adult.html"><span class="tag">성인</span><h2>성인 차팅·처방 + 고찰</h2><p>증상 체크 → EMR 차트 + 장기 기능별 오더, 다빈도 21개 질환 고찰</p><ul><li>감기·목·기침, 속쓰림·소화, 설사·구토·변비</li><li>두통·통증, 소변, 피부·알레르기</li></ul></a>
+    <a class="card" href="calc.html"><span class="tag">소아</span><h2>소아 용량계산기</h2><p>체중·나이·일수만 정하면 약별 오더가 계산됩니다. 조합 버튼으로 한 번에 추가할 수 있습니다.</p></a>
+    <a class="card" href="drill.html"><span class="tag">소아</span><h2>소아 증례훈련</h2><p>무작위 증례의 EMR 차트를 보고 처방을 고른 뒤 정답과 비교합니다.</p></a>
+  </div>
+  <section class="note">
+    <h3>공통 규칙</h3>
+    <ul>
+      <li>오더 표기는 <code>1일 총량/횟수/일수</code>입니다. 예를 들어 <code>3/3/3</code>은 하루 3(알·포·단위)을 3회로 나눠 3일입니다.</li>
+      <li>환자 정보는 저장하지 않습니다. 브라우저에는 농도·재고 같은 설정만 남습니다.</li>
+      <li>[확인] 표시는 보유 제품의 농도·허가사항을 확인해야 하는 항목입니다. 처방 전 DUR로 병용금기를 확인하세요.</li>
+    </ul>
+  </section>
+  <footer>진료 보조 도구입니다. 최종 판단은 임상의의 몫입니다. · 2026.11 판</footer>
+</div>
+</body>
+</html>

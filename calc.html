@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>소아 처방 용량 계산기</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: 위 = 환자(체중·나이·일수) 띠, 아래 왼쪽 = 약 고르기, 오른쪽 = 처방 줄 (3/3/3) */
+:root{
+  --bg:#F3F6F5;--surface:#FFFFFF;--paper:#FBFCF9;--ink:#17232A;--muted:#5A6A71;--line:#D5DEDB;
+  --accent:#0E6B63;--accent-ink:#FFFFFF;--accent-weak:#E1EFEC;
+  --warn:#8A5300;--warn-bg:#FFF2D9;--danger:#9E2619;--danger-bg:#FCE6E2;
+  --f-body:'IBM Plex Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-num:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1416;--surface:#152024;--paper:#111A1D;--ink:#E3ECEA;--muted:#93A5A9;--line:#29393E;
+  --accent:#4DBFB2;--accent-ink:#06201D;--accent-weak:#123230;--warn:#E8B75E;--warn-bg:#2D2312;--danger:#F28D80;--danger-bg:#3A1C19;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1416;--surface:#152024;--paper:#111A1D;--ink:#E3ECEA;--muted:#93A5A9;--line:#29393E;
+  --accent:#4DBFB2;--accent-ink:#06201D;--accent-weak:#123230;--warn:#E8B75E;--warn-bg:#2D2312;--danger:#F28D80;--danger-bg:#3A1C19;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:14px}
+h1{font-size:21px;margin:0;text-wrap:balance}
+.lede{margin:2px 0 0;color:var(--muted);font-size:13.5px;max-width:72ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.pt{display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lab{width:52px;flex:none;font-size:13px;font-weight:700;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 11px;font:500 13px var(--f-body);cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.blocked{opacity:.45;text-decoration:line-through}
+.chip:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wt{display:flex;gap:4px;align-items:center}
+.wt input{width:84px;text-align:center;font:600 18px var(--f-num);padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.wt span{font-weight:700}
+.days input{width:56px;text-align:center;font:600 15px var(--f-num);padding:3px 4px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+h2{font-size:14px;margin:0 0 8px;letter-spacing:.02em}
+.grp{display:grid;gap:6px;margin-top:12px}
+.grp h3{margin:0;font-size:12px;color:var(--muted);letter-spacing:.06em}
+.combo .chip{border-style:dashed}
+.rx{display:grid;gap:8px}
+.ln{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--paper)}
+.ln .nm{font-weight:700;font-size:14px;min-width:0}
+.ln .val{font:600 20px var(--f-num);color:var(--accent);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ln .sub{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.ln .ctl{grid-column:1/-1;display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.ln .ctl input{width:48px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:500 13px var(--f-num);text-align:center}
+.ln .x{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:13px}
+.ln.blk{background:var(--danger-bg);border-color:transparent}
+.ln.blk .val{color:var(--danger);font-size:14px}
+.w{color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:2px 8px;font-size:12.5px;grid-column:1/-1}
+.empty{color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:10px;padding:16px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:8px 14px;font:600 14px var(--f-body);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--muted);padding:6px 10px;font:600 12.5px var(--f-body);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent-weak);color:var(--accent)}
+pre.out{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:13px/1.6 var(--f-num);white-space:pre;overflow-x:auto;color:var(--ink)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 16px}
+details summary{cursor:pointer;font-weight:700}
+.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 14px;margin-top:10px}
+.cg label{display:flex;gap:6px;align-items:center;font-size:13px;justify-content:space-between}
+.cg input{width:74px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);font:500 13px var(--f-num);text-align:right}
+.hint{color:var(--muted);font-size:12.5px;margin:0}
+.flag{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-weak);border-radius:6px;padding:2px 8px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+<style>.topnav{max-width:1180px;margin:0 auto 12px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;font-family:var(--f-body,system-ui)}.topnav a{color:var(--muted,#5A6A71);text-decoration:none;padding:2px 0;border-bottom:2px solid transparent}.topnav a:hover{color:var(--ink,#17232A)}.topnav a[aria-current="page"]{color:var(--accent,#0E6B63);border-bottom-color:var(--accent,#0E6B63);font-weight:700}</style>
+</head>
+<body>
+<nav class="topnav" aria-label="도구"><a href="index.html">처음</a><a href="peds.html">소아 차팅·처방</a><a href="adult.html">성인 차팅·처방</a><a href="calc.html" aria-current="page">소아 용량계산기</a><a href="drill.html">소아 증례훈련</a></nav>
+<div class="wrap">
+  <header>
+    <h1>소아 처방 용량 계산기</h1>
+    <p class="lede">체중·나이·일수를 정하고 약을 고르면 <b>1일 총량/횟수/일수</b>(예: 3/3/3 = 하루 3, 3회 나눠, 3일)가 바로 계산됩니다. 용량은 교과서 1·2권 기준(지침·국내 허가사항)이고, 나이 제한에 걸리는 약은 빨갛게 막힙니다.</p>
+  </header>
+  <section class="panel pt" aria-label="환자">
+    <div class="row"><span class="lab">체중</span>
+      <div class="wt"><button class="chip" data-dw="-1">−1</button><button class="chip" data-dw="-0.5">−0.5</button><input id="w" inputmode="decimal" aria-label="체중 kg"><span>kg</span><button class="chip" data-dw="0.5">+0.5</button><button class="chip" data-dw="1">+1</button></div>
+      <div class="chips" id="wq"></div></div>
+    <div class="row"><span class="lab">나이</span><div class="chips" id="ages"></div></div>
+    <div class="row days"><span class="lab">일수</span><div class="chips" id="dq"></div><input id="d" inputmode="numeric" aria-label="일수"><span class="hint">항생제 총 기간·고정 일수 약은 줄마다 따로 바꿀 수 있습니다</span></div>
+  </section>
+  <div class="grid">
+    <section class="panel" aria-label="약 고르기">
+      <h2>약 고르기</h2>
+      <div class="grp combo"><h3>자주 쓰는 조합 (누르면 한꺼번에 추가)</h3><div class="chips" id="combos"></div></div>
+      <div id="groups"></div>
+    </section>
+    <section class="panel" aria-label="처방">
+      <div class="btns" style="justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin:0">처방 <span class="flag" id="ex" hidden>예시</span></h2>
+        <div class="btns">
+          <span class="hint">1일 총량 / 횟수 / 일수</span>
+          <div class="seg" role="group" aria-label="반올림"><button data-step="0.1">0.1 mL</button><button data-step="0.5">0.5 mL</button></div>
+        </div>
+      </div>
+      <div class="rx" id="rx"></div>
+      <h2 style="margin-top:14px">복사할 텍스트</h2>
+      <pre class="out" id="out"></pre>
+      <div class="btns" style="margin-top:10px"><button class="btn primary" id="copy">전체 복사</button><button class="btn" id="clear">처방 비우기</button><span class="hint">줄 사이는 탭이라 EMR·엑셀 표에 붙이면 칸이 나뉩니다</span></div>
+    </section>
+  </div>
+  <details id="cfg"><summary>제품 농도 설정 (mg/mL — 비워두면 mg으로 표시)</summary>
+    <p class="hint" style="margin-top:8px">원장님 보유 제품 농도를 넣으면 mL로 바뀝니다. 이 브라우저에만 저장됩니다. 잘티진·제로레보·피알디·amox/clav 14:1·오셀타미비르·케토티펜은 고정 농도로 계산합니다.</p>
+    <div class="cg" id="concs"></div>
+  </details>
+  <p class="hint">진료 보조 도구입니다. 처방 전 보유 제품 라벨(농도·허가 연령)을 확인하세요. 최종 판단은 임상의의 몫입니다.</p>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+// ===== 약 정의: calc(w kg, a 개월) → {mg|amt, unit, times, days?, note, block?, warn?} =====
+const CONC_DEF={apap:32,dexi:12,ambro:3,amox:0,cfd:0,cpd:0,cfx:0,cdx:0,azi:0,clr:0,cld:0,acv:0};
+const CONC_LABEL={apap:'아세트아미노펜 시럽',dexi:'덱시부프로펜 시럽',ambro:'암브록솔 시럽',amox:'amoxicillin 건조시럽',cfd:'cefdinir 건조시럽',cpd:'cefpodoxime 건조시럽',cfx:'cefixime 건조시럽',cdx:'cefadroxil 건조시럽',azi:'azithromycin 건조시럽',clr:'clarithromycin 건조시럽',cld:'clindamycin',acv:'acyclovir 현탁액'};
+const AGE_NEED='나이를 고르면 계산됩니다';
+const D=[
+// 공통
+{id:'apap',g:'해열·진통',chip:'아세트아미노펜',name:'아세트아미노펜 시럽',conc:'apap',calc:(w,a)=>({mg:Math.min(w*12,1000),times:3,note:'12 mg/kg (10–15) · 필요 시 · 4–6시간 간격 · 하루 최대 5회',warn:a!=null&&a<3?['3개월 미만 발열은 해열제보다 평가가 먼저']:[]})},
+{id:'dexi',g:'해열·진통',chip:'덱시부프로펜',name:'덱시부프로펜 시럽',conc:'dexi',calc:(w,a)=>a!=null&&a<6?{block:'6개월 미만 사용 안 함'}:({mg:Math.min(w*6,300),times:3,note:'6 mg/kg (5–7) · 필요 시 · 4–6시간 · 하루 최대 4회'})},
+// 코
+{id:'levo',g:'코·알레르기',chip:'잘티진 (레보세티리진)',name:'잘티진액 0.5 mg/mL',fixedConc:0.5,calc:(w,a)=>a==null?{block:AGE_NEED}:a<12?{block:'1세 미만 금기'}:a<24?{mg:1.25,times:1,note:'1–2세 1.25 mg 1일 1회 · 2세 미만 감기에는 가급적 생략'}:a<72?{mg:1.25,times:2,note:'2–5세 1.25 mg 1일 2회'}:{mg:5,times:1,note:'6세 이상 5 mg 1일 1회'}},
+{id:'keto',g:'코·알레르기',chip:'케토티펜',name:'케토티펜 시럽 0.2 mg/mL',fixedConc:0.2,calc:(w,a)=>a==null?{block:AGE_NEED}:a<6?{block:'6개월 미만 사용 안 함'}:a<36?{mg:w*0.05,times:2,note:'3세 미만 0.05 mg/kg 1일 2회 · 1세대(졸림) · 라벨 확인'}:{mg:1,times:2,note:'3세 이상 1 mg 1일 2회 · 1세대(졸림)'}},
+{id:'mute',g:'코·알레르기',chip:'뮤테란 (아세틸시스테인)',name:'뮤테란 과립 200 mg/포',calc:(w,a)=>a==null?{block:AGE_NEED}:a<24?{block:'2세 미만 금지'}:a<72?{amt:0.5,unit:'포',times:3,note:'2–5세 100 mg 1일 3회 · 항히스타민과 같이 넣지 않음'}:{amt:1,unit:'포',times:2,note:'6–14세 200 mg 1일 2회'}},
+{id:'ambro',g:'코·알레르기',chip:'암브록솔',name:'암브록솔 시럽',conc:'ambro',calc:(w,a)=>a==null?{block:AGE_NEED}:a<24?{block:'2세 미만 원칙적 금지'}:a<60?{mg:7.5,times:3,note:'2–4세 7.5 mg 1일 3회'}:{mg:15,times:3,note:'5세 이상 15 mg 1일 2–3회'}},
+{id:'incs',g:'코·알레르기',chip:'아바비스나잘 (INCS)',name:'아바비스나잘스프레이',calc:(w,a)=>a==null?{block:AGE_NEED}:a<24?{block:'2세 미만 쓰지 않음'}:{amt:a>=144?2:1,unit:'분무(각 콧구멍)',times:1,note:'며칠 꾸준히 · 허가 연령 라벨 확인'}},
+// 기침
+{id:'monte',g:'기침·천식',chip:'몬테루카스트',name:'몬테루카스트 츄정',calc:(w,a)=>a==null?{block:AGE_NEED}:a<24?{block:'츄정은 2세 이상 (6개월–2세는 세립 4 mg)'}:{amt:1,unit:`정 (${a<72?4:a<180?5:10} mg)`,times:1,note:'저녁 · 악몽·행동 변화 시 알려 달라고 고지 (FDA 경고)',daysHint:14}},
+{id:'pran',g:'기침·천식',chip:'씨투스 (프란루카스트)',name:'씨투스 건조시럽 100 mg/g',calc:(w,a)=>w<12?{block:'12 kg 미만 — 허가 체중표 밖'}:({amt:Math.min(w*3.5,225)/100,unit:'g',times:2,note:'7 mg/kg/일 분2 · 최대 10 mg/kg/일·450 mg/일',daysHint:14})},
+{id:'tulo',g:'기침·천식',chip:'툴로부테롤 패취',name:'툴로부테롤 패취',calc:(w,a)=>a==null?{block:AGE_NEED}:a<6?{block:'6개월 미만 안전성 미확립'}:{amt:1,unit:`매 (${a<36?0.5:a<108?1:2} mg)`,times:1,note:'가슴·등·팔, 매일 위치 변경 · 급성 처치용 아님'}},
+{id:'zero',g:'기침·천식',chip:'제로레보',name:'제로레보시럽 6 mg/mL',fixedConc:6,calc:(w,a)=>a==null?{block:AGE_NEED}:a<24?{block:'2세 미만 쓰지 않음'}:w<10?{block:'10 kg 미만 — 허가 체중표 밖'}:{mg:w<=20?18:w<=30?30:60,times:3,note:'6시간 이상 간격 · 원인 미분류 마른기침에 단기 · 후비루형·크룹에는 쓰지 않음'}},
+{id:'croup',g:'기침·천식',chip:'크룹: 피알디 1회',name:'피알디현탁시럽 0.1% (1 mg/mL)',fixedConc:1,fixedDays:1,calc:(w,a)=>({mg:Math.min(w,40),times:1,note:'1 mg/kg 1회만 · dexamethasone이 있으면 0.15–0.6 mg/kg로 교체 · 진해제 넣지 않음'})},
+{id:'pred',g:'기침·천식',chip:'천식 악화: 피알디',name:'피알디현탁시럽 0.1% (1 mg/mL)',fixedConc:1,calc:(w,a)=>{const cap=a==null?40:a<24?20:a<72?30:40;return {mg:Math.min(w,cap),times:1,note:`1 mg/kg/일 (최대 2 mg/kg) · 상한 ${cap} mg · 3–5일`}}},
+// 항생제
+{id:'ac14',g:'항생제',chip:'amox/clav 14:1',name:'amox/clav 14:1 건조시럽 120 mg/mL',fixedConc:120,calc:(w,a)=>({mg:Math.min(w*45,2000),times:2,note:'아목시실린 90 mg/kg/일 분2 · 중이염 2세 미만 10일, 2–5세 7일 · 부비동염·PBB 14일',warn:w>=40?['40 kg 이상은 성인 제형']:[]})},
+{id:'amox',g:'항생제',chip:'amoxicillin 고용량',name:'amoxicillin 건조시럽',conc:'amox',calc:(w,a)=>({mg:Math.min(w*45,2000),times:2,note:'90 mg/kg/일 분2 · 세트에 없으면 보강 필요'})},
+{id:'amoxG',g:'항생제',chip:'amoxicillin (GAS)',name:'amoxicillin 건조시럽',conc:'amox',calc:(w,a)=>({mg:Math.min(w*50,1000),times:1,note:'GAS 50 mg/kg 1일 1회 · 최대 1 g · 총 10일'})},
+{id:'cdx',g:'항생제',chip:'cefadroxil',name:'cefadroxil 건조시럽',conc:'cdx',calc:(w,a)=>({mg:Math.min(w*30,1000),times:1,note:'30 mg/kg 1일 1회 · GAS 총 10일 / 농가진 7일',warn:a!=null&&a<36?['3세 미만은 GAS 인두염이 드묾']:[]})},
+{id:'cfd',g:'항생제',chip:'cefdinir',name:'cefdinir 건조시럽',conc:'cfd',calc:(w,a)=>({mg:Math.min(w*7,300),times:2,note:'14 mg/kg/일 분2 · 하루 최대 600 mg'})},
+{id:'cpd',g:'항생제',chip:'cefpodoxime',name:'cefpodoxime 건조시럽',conc:'cpd',calc:(w,a)=>({mg:Math.min(w*5,200),times:2,note:'10 mg/kg/일 분2 · 하루 최대 400 mg'})},
+{id:'cfx',g:'항생제',chip:'cefixime (요로)',name:'cefixime 건조시럽',conc:'cfx',calc:(w,a)=>({mg:Math.min(w*8,400),times:1,note:'8 mg/kg 1일 1회 · 배양으로 조정 · 열성 요로감염 총 7–14일'})},
+{id:'cld',g:'항생제',chip:'clindamycin',name:'clindamycin',conc:'cld',calc:(w,a)=>({mg:Math.min(w*35/3,600),times:3,note:'30–40 mg/kg/일 분3 · AC14 무반응 시 cefdinir와 병용 · 세트에 없으면 보강 필요'})},
+{id:'azi',g:'항생제',chip:'azithromycin 3일',name:'azithromycin 건조시럽',conc:'azi',fixedDays:3,calc:(w,a)=>({mg:Math.min(w*10,500),times:1,note:'10 mg/kg 1일 1회 × 3일 · 48–72시간 무반응이면 내성 간주 (국내 81%)'})},
+{id:'clr',g:'항생제',chip:'clarithromycin',name:'clarithromycin 건조시럽',conc:'clr',calc:(w,a)=>({mg:Math.min(w*7.5,500),times:2,note:'15 mg/kg/일 분2 · 쓴맛 주의'})},
+// 소화기
+{id:'race',g:'소화기',chip:'하이드라섹',name:'하이드라섹산',calc:(w,a)=>a!=null&&a<3?{block:'3개월 미만 금기'}:w<9?{amt:1,unit:'포 (10 mg)',times:3,note:'9 kg 미만 10 mg × 1포 · ORS와 함께 · 최대 7일'}:w<13?{amt:2,unit:'포 (10 mg)',times:3,note:'9–13 kg 10 mg × 2포 · ORS와 함께 · 최대 7일'}:w<=27?{amt:1,unit:'포 (30 mg)',times:3,note:'13–27 kg 30 mg × 1포 · 최대 7일'}:{amt:2,unit:'포 (30 mg)',times:3,note:'27 kg 초과 30 mg × 2포 · 최대 7일'}},
+{id:'ond',g:'소화기',chip:'ondansetron 1회',name:'ondansetron 구강붕해정',fixedDays:1,calc:(w,a)=>a!=null&&a<6?{block:'6개월 미만 대상 아님'}:w<8?{block:'8 kg 미만 — 체중 구간 밖'}:{amt:w<=15?2:w<=30?4:8,unit:'mg',times:1,note:'ORS를 토할 때 1회 · 15–30분 뒤 ORS 재시작 · 장염은 허가 외'}},
+{id:'lact',g:'소화기',chip:'락툴로오스',name:'락툴로오스 시럽 667 mg/mL',calc:(w,a)=>({amt:w*0.5,unit:'mL',times:2,note:'1 mL/kg/일에서 시작 · 2–3일마다 조절 · 최소 2개월 유지',daysHint:14})},
+{id:'trime',g:'소화기',chip:'트리메부틴',name:'트리메부틴 건조시럽 (24 mg/5 mL)',fixedConc:4.8,calc:(w,a)=>a==null?{block:AGE_NEED}:a<6?{mg:12,times:2,note:'6개월 미만 12 mg 1일 2–3회 · 소아 근거 약함'}:a<12?{mg:24,times:2,note:'6개월–1세 24 mg 1일 2회'}:a<60?{mg:24,times:3,note:'1–5세 24 mg 1일 3회'}:{mg:48,times:3,note:'5세 이상 48 mg 1일 3회'}},
+{id:'lanso',g:'소화기',chip:'lansoprazole',name:'lansoprazole',calc:(w,a)=>a==null?{block:AGE_NEED}:a<12?{block:'영아의 울음·역류에는 쓰지 않음'}:{amt:w<=30?15:30,unit:'mg',times:1,note:'30 kg 이하 15 mg · 2–4주 시험 후 효과 없으면 중단'}},
+// 특수 감염
+{id:'osel',g:'독감·바이러스',chip:'오셀타미비르',name:'오셀타미비르 현탁 6 mg/mL',fixedConc:6,fixedDays:5,calc:(w,a)=>a==null?{block:AGE_NEED}:a<12?{mg:w*3,times:2,note:'1세 미만 3 mg/kg 1일 2회 5일 · 2일간 혼자 두지 않기'}:{mg:w<=15?30:w<=23?45:w<=40?60:75,times:2,note:'체중별 30/45/60/75 mg 1일 2회 5일 · 2일간 혼자 두지 않기'}},
+{id:'balo',g:'독감·바이러스',chip:'발록사비르 1회',name:'발록사비르(조플루자)',fixedDays:1,calc:(w,a)=>a==null?{block:AGE_NEED}:a<12?{block:'1세 미만 안전성 미확립'}:w<10?{block:'10 kg 미만 — 용량표 밖'}:{amt:w<20?10:w<40?20:40,unit:'mg',times:1,note:'48시간 이내 1회 · 2일간 혼자 두지 않기'}},
+{id:'acvH',g:'독감·바이러스',chip:'acyclovir (구내염)',name:'acyclovir',conc:'acv',calc:(w,a)=>({mg:Math.min(w*15,200),times:5,note:'헤르페스 구내염 72시간 이내 · 15 mg/kg 하루 5회 · 총 7일'})},
+{id:'acvV',g:'독감·바이러스',chip:'acyclovir (수두)',name:'acyclovir',conc:'acv',fixedDays:5,calc:(w,a)=>({mg:Math.min(w*20,800),times:4,note:'수두 24시간 이내 · 12세 이상·만성 피부/폐질환 · 아스피린 금지'})},
+{id:'nyst',g:'독감·바이러스',chip:'nystatin (아구창)',name:'nystatin 현탁액 10만 단위/mL',calc:(w,a)=>({amt:a!=null&&a<12?2:4,unit:'mL',times:4,note:'양 볼에 나눠, 수유 후 · 소실 후 48시간 더'})},
+// 응급
+{id:'epi',g:'응급',chip:'에피네프린 IM',name:'에피네프린 1 mg/mL 근육주사',fixedDays:1,calc:(w,a)=>({amt:Math.min(w*0.01,a!=null&&a>=144?0.5:0.3),unit:'mL',times:1,note:'0.01 mL/kg 허벅지 바깥쪽 · 5–15분마다 반복 가능 · 119'})}
+];
+const COMBO=[
+ {n:'감기 초기',ids:['dexi','levo'],tip:'D1–3 · 2세 미만이면 잘티진 빼기'},
+ {n:'알레르기 비염',ids:['levo','incs']},
+ {n:'후비루 기침',ids:['mute','incs'],tip:'항히스타민·진해제 넣지 않음'},
+ {n:'부비동염',ids:['ac14','mute','incs'],tip:'일수 14'},
+ {n:'중이염',ids:['ac14','dexi']},
+ {n:'크룹',ids:['croup','dexi']},
+ {n:'기도과민 기침',ids:['monte']},
+ {n:'천식 악화',ids:['pred']},
+ {n:'GAS 인두염',ids:['cdx','dexi'],tip:'일수 10'},
+ {n:'마이코플라스마',ids:['azi','dexi']},
+ {n:'마지막 단계',ids:['cld','cfd'],tip:'AC14 무반응 · 순응도 OK'},
+ {n:'요로감염',ids:['cfx','dexi']},
+ {n:'장염',ids:['race'],tip:'ORS 별도 안내 · 토하면 ondansetron'},
+ {n:'독감',ids:['osel','dexi']}
+];
+
+const $=id=>document.getElementById(id);
+const AGES=[['1개월 미만',0.5],['1–2개월',1.5],['3–5개월',4],['6–11개월',8],...Array.from({length:15},(_,i)=>[`${i+1}세`,(i+1)*12])];
+let st={w:15,age:'3세',days:3,sel:[],ov:{},step:0.1,conc:{...CONC_DEF},example:true};
+try{const s=JSON.parse(localStorage.getItem('rxcalc_cfg')||'{}');if(s.conc)st.conc={...st.conc,...s.conc};if(s.step)st.step=s.step;}catch(e){}
+const saveCfg=()=>{try{localStorage.setItem('rxcalc_cfg',JSON.stringify({conc:st.conc,step:st.step}))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const fmt=x=>{const v=Math.round(x*100)/100;return String(v)};
+const ageM=()=>{const a=AGES.find(x=>x[0]===st.age);return a?a[1]:null};
+function toast(m){const t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.opacity=0,1400)}
+function rnd(v,unit){if(unit==='mL'){const s=st.step;return Math.round(v/s)*s;}if(unit==='mg')return v<10?Math.round(v*10)/10:v<100?Math.round(v):Math.round(v/5)*5;if(unit==='g')return Math.round(v*20)/20;return v;}
+function calc(d){
+  const w=st.w,a=ageM();if(!(w>0))return {block:'체중을 입력하세요'};
+  const r=d.calc(w,a);if(r.block)return {block:r.block};
+  let amt,unit,mgPer=null;
+  if(r.mg!=null){const c=d.fixedConc||(d.conc&&+st.conc[d.conc]);mgPer=r.mg;if(c>0){amt=r.mg/c;unit='mL';}else{amt=r.mg;unit='mg';}}
+  else{amt=r.amt;unit=r.unit;}
+  amt=rnd(amt,unit);
+  const days=st.ov[d.id]??d.fixedDays??st.days;
+  const realMg=mgPer!=null?(unit==='mL'?amt*(d.fixedConc||+st.conc[d.conc]):amt):null;
+  const warn=[...(r.warn||[])];if(a!=null&&a<3&&d.g==='항생제')warn.push('3개월 미만 — 용량·적응이 달라 외래 경구 항생제 대상이 아님 (치료 강도 상향)');
+  return {amt,unit,times:r.times,days,note:r.note,warn,mg:realMg,fixed:d.fixedDays!=null&&st.ov[d.id]==null,daysHint:r.daysHint};
+}
+// 오더 표기 = 1일 총량/횟수/일수 (1회량 × 횟수 = 1일 총량)
+function str(c){const v=typeof c.amt==='number'?Math.round(c.amt*c.times*100)/100:c.amt;return `${fmt(v)}${c.unit}/${c.times}/${c.days}`;}
+function buildStatic(){
+  $('wq').innerHTML=[5,8,10,12,15,18,20,25,30,35,40].map(v=>`<button class="chip" data-wq="${v}">${v}</button>`).join('');
+  $('ages').innerHTML=AGES.map(([l])=>`<button class="chip" data-age="${l}">${l}</button>`).join('');
+  $('dq').innerHTML=[1,2,3,4,5,7,10,14].map(v=>`<button class="chip" data-dq="${v}">${v}일</button>`).join('');
+  $('combos').innerHTML=COMBO.map((c,i)=>`<button class="chip" data-combo="${i}" title="${esc(c.tip||'')}">${esc(c.n)}</button>`).join('');
+  const groups=[...new Set(D.map(d=>d.g))];
+  $('groups').innerHTML=groups.map(g=>`<div class="grp"><h3>${esc(g)}</h3><div class="chips">${D.filter(d=>d.g===g).map(d=>`<button class="chip" data-id="${d.id}">${esc(d.chip)}</button>`).join('')}</div></div>`).join('');
+  $('concs').innerHTML=Object.keys(CONC_DEF).map(k=>`<label>${esc(CONC_LABEL[k])}<input id="c_${k}" inputmode="decimal" value="${st.conc[k]||''}" placeholder="mg/mL"></label>`).join('');
+  Object.keys(CONC_DEF).forEach(k=>$('c_'+k).addEventListener('input',e=>{st.conc[k]=parseFloat(e.target.value)||0;saveCfg();render();}));
+}
+function render(){
+  $('w').value=st.w||'';$('d').value=st.days;
+  document.querySelectorAll('[data-wq]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.wq===st.w));
+  document.querySelectorAll('[data-age]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.age===st.age));
+  document.querySelectorAll('[data-dq]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.dq===st.days));
+  document.querySelectorAll('[data-step]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.step===st.step));
+  document.querySelectorAll('[data-id]').forEach(b=>{const d=D.find(x=>x.id===b.dataset.id);b.setAttribute('aria-pressed',st.sel.includes(d.id));const c=calc(d);b.classList.toggle('blocked',!!c.block);b.title=c.block||'';});
+  $('ex').hidden=!st.example;
+  const lines=[];
+  $('rx').innerHTML=st.sel.length?st.sel.map(id=>{const d=D.find(x=>x.id===id);const c=calc(d);
+    if(c.block)return `<div class="ln blk"><div class="nm">${esc(d.name)}</div><div class="val">${esc(c.block)}</div><div class="ctl"><button class="x" data-rm="${id}">빼기 ×</button></div></div>`;
+    const s=str(c);lines.push(`${d.name}\t${s}`);
+    const per=typeof c.amt==='number'?`1회 ${fmt(c.amt)}${c.unit}${c.mg!=null&&c.unit==='mL'?` (${fmt(c.mg)} mg)`:''} × ${c.times}회`:'';
+    const mgT=c.mg!=null?`1일 ${fmt(c.mg*c.times)} mg = ${fmt(c.mg*c.times/st.w)} mg/kg/일`:'';
+    const mgTxt=[per,mgT,c.note].filter(Boolean).join(' · ');
+    return `<div class="ln"><div class="nm">${esc(d.name)}</div><div class="val">${esc(s)}</div><div class="sub">${esc(mgTxt)}</div>${c.warn.map(x=>`<div class="w">${esc(x)}</div>`).join('')}<div class="ctl">일수 <input data-ov="${id}" value="${c.days}" inputmode="numeric" aria-label="${esc(d.name)} 일수">${c.fixed?'<span>고정 일수</span>':''}${c.daysHint&&c.days<c.daysHint?`<span>보통 ${c.daysHint}일 이상</span>`:''}<button class="x" data-rm="${id}">빼기 ×</button></div></div>`;
+  }).join(''):`<div class="empty">왼쪽에서 약이나 조합을 누르면 여기에 <b>1일 총량/횟수/일수</b>로 계산됩니다.</div>`;
+  $('out').textContent=lines.length?lines.join('\n'):'—';
+}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;const ds=t.dataset;
+  if(ds.dw){st.w=Math.max(0,Math.round(((+st.w||0)+ +ds.dw)*10)/10);st.example=false;}
+  else if(ds.wq){st.w=+ds.wq;st.example=false;}
+  else if(ds.age){st.age=st.age===ds.age?'':ds.age;st.example=false;}
+  else if(ds.dq){st.days=+ds.dq;st.example=false;}
+  else if(ds.step){st.step=+ds.step;saveCfg();}
+  else if(ds.id){const i=st.sel.indexOf(ds.id);if(i>=0){st.sel.splice(i,1);delete st.ov[ds.id];}else st.sel.push(ds.id);st.example=false;}
+  else if(ds.combo){const c=COMBO[+ds.combo];if(st.example){st.sel=[];st.ov={};}c.ids.forEach(id=>{if(!st.sel.includes(id))st.sel.push(id)});if(c.tip)toast(c.tip);st.example=false;}
+  else if(ds.rm){st.sel=st.sel.filter(x=>x!==ds.rm);delete st.ov[ds.rm];}
+  else return;
+  render();});
+document.addEventListener('input',e=>{const t=e.target;
+  if(t.id==='w'){st.w=parseFloat(t.value)||0;st.example=false;renderKeep(t);}
+  else if(t.id==='d'){const v=parseInt(t.value);if(v>0){st.days=v;st.example=false;renderKeep(t);}}
+  else if(t.dataset.ov){const v=parseInt(t.value);if(v>0){st.ov[t.dataset.ov]=v;renderKeep(t);}}});
+function renderKeep(el){const id=el.id,ov=el.dataset.ov,pos=el.selectionStart;render();const n=id?$(id):document.querySelector(`[data-ov="${ov}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}
+$('copy').onclick=async()=>{const t=$('out').textContent;try{await navigator.clipboard.writeText(t);toast('복사됨')}catch(e){const r=document.createRange();r.selectNodeContents($('out'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('선택됨 — Ctrl+C')}};
+$('clear').onclick=()=>{st.sel=[];st.ov={};st.example=false;render();};
+buildStatic();
+// 예시: 15 kg 3세, 중이염 + 해열
+st.sel=['ac14','dexi'];render();
+
+</script>
+
+</body>
+</html>

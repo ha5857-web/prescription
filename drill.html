@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>소아 처방 증례 훈련</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 진료실 차트 종이(왼쪽) ↔ 판독지(오른쪽). 좁으면 위아래로 쌓임 */
+:root{
+  --bg:#F3F6F5;--surface:#FFFFFF;--paper:#FBFCF9;--ink:#17232A;--muted:#5A6A71;--line:#D5DEDB;
+  --accent:#0E6B63;--accent-ink:#FFFFFF;--accent-weak:#E1EFEC;
+  --warn:#8A5300;--warn-bg:#FFF2D9;--danger:#9E2619;--danger-bg:#FCE6E2;--ok:#1C6B3A;--ok-bg:#E2F2E7;
+  --f-body:'IBM Plex Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,'Malgun Gothic',monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1416;--surface:#152024;--paper:#111A1D;--ink:#E3ECEA;--muted:#93A5A9;--line:#29393E;
+  --accent:#4DBFB2;--accent-ink:#06201D;--accent-weak:#123230;
+  --warn:#E8B75E;--warn-bg:#2D2312;--danger:#F28D80;--danger-bg:#3A1C19;--ok:#7FD39B;--ok-bg:#15301F;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1416;--surface:#152024;--paper:#111A1D;--ink:#E3ECEA;--muted:#93A5A9;--line:#29393E;
+  --accent:#4DBFB2;--accent-ink:#06201D;--accent-weak:#123230;
+  --warn:#E8B75E;--warn-bg:#2D2312;--danger:#F28D80;--danger-bg:#3A1C19;--ok:#7FD39B;--ok-bg:#15301F;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+header{display:grid;gap:10px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:70ch;font-size:14px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 13px;font:500 13px var(--f-body);cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip:focus-visible,.btn:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sp{flex:1}
+.tally{font:500 13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+label.tog{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);cursor:pointer}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0;display:grid;gap:12px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.meta .no{font:500 12px var(--f-mono);color:var(--muted);letter-spacing:.04em}
+.meta .pt{font-weight:700;font-size:16px}
+.tag{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-weak);border-radius:6px;padding:2px 8px}
+pre.chart{margin:0;background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:12px 14px;font:13px/1.55 var(--f-mono);white-space:pre;overflow-x:auto;color:var(--ink)}
+textarea{width:100%;min-height:84px;resize:vertical;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);padding:10px;font:14px/1.5 var(--f-body)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:9px 16px;font:600 14px var(--f-body);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.hint{color:var(--muted);font-size:13px;margin:0}
+.ph{display:grid;gap:8px;color:var(--muted);font-size:14px}
+.ph ol{margin:0;padding-left:20px}
+.alert{background:var(--danger-bg);color:var(--danger);border-left:4px solid var(--danger);border-radius:6px;padding:8px 10px;font-weight:700;font-size:14px}
+.warn{background:var(--warn-bg);color:var(--warn);border-left:4px solid var(--warn);border-radius:6px;padding:6px 10px;font-size:13px}
+.sec h3{margin:0 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted);font-weight:700}
+.sec ul{margin:0;padding-left:20px}
+.sec li{margin:2px 0}
+.rx li{font-weight:600}
+.no-list li{color:var(--danger)}
+table.ax{width:100%;border-collapse:collapse;font-size:13.5px}
+table.ax td{border:1px solid var(--line);padding:5px 8px;vertical-align:top}
+table.ax td:first-child{white-space:nowrap;font-weight:700;background:var(--accent-weak);width:1%}
+.point{background:var(--ok-bg);border-radius:8px;padding:10px 12px;font-size:14px}
+.point b{color:var(--ok)}
+.grade{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px dashed var(--line);padding-top:12px}
+.grade .btn[data-g="ok"]{border-color:var(--ok);color:var(--ok)}
+.grade .btn[data-g="part"]{border-color:var(--warn);color:var(--warn)}
+.grade .btn[data-g="miss"]{border-color:var(--danger);color:var(--danger)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 16px}
+details summary{cursor:pointer;font-weight:700}
+.tbl{overflow-x:auto}
+.tbl table{border-collapse:collapse;font-size:13px;min-width:520px;width:100%}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;font-variant-numeric:tabular-nums}
+.tbl th{color:var(--muted);font-weight:700;font-size:12px}
+.miss{color:var(--danger);font-weight:700}
+.codes{font:13px/1.6 var(--f-mono);white-space:pre-wrap;color:var(--ink);margin:8px 0 0}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+<style>.topnav{max-width:1180px;margin:0 auto 12px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;font-family:var(--f-body,system-ui)}.topnav a{color:var(--muted,#5A6A71);text-decoration:none;padding:2px 0;border-bottom:2px solid transparent}.topnav a:hover{color:var(--ink,#17232A)}.topnav a[aria-current="page"]{color:var(--accent,#0E6B63);border-bottom-color:var(--accent,#0E6B63);font-weight:700}</style>
+</head>
+<body>
+<nav class="topnav" aria-label="도구"><a href="index.html">처음</a><a href="peds.html">소아 차팅·처방</a><a href="adult.html">성인 차팅·처방</a><a href="calc.html">소아 용량계산기</a><a href="drill.html" aria-current="page">소아 증례훈련</a></nav>
+<div class="wrap">
+<header>
+  <h1>소아 처방 증례 훈련</h1>
+  <p class="lede">EMR 양식 v2 차트를 읽고 처방을 먼저 적은 뒤 정답을 확인합니다. 증례는 매번 새로 만들어지고, 정답은 교과서 1·2권의 규칙과 원장님 의원의 보유 약품·처치 범위(ceftriaxone 근주 불가, amoxicillin 단독 미보유)를 따릅니다.</p>
+  <div class="bar" id="filters" role="group" aria-label="주호소"></div>
+  <div class="bar">
+    <label class="tog"><input type="checkbox" id="weak"> 틀린 유형 더 자주</label>
+    <span class="sp"></span>
+    <span class="tally" id="tally"></span>
+  </div>
+</header>
+<div class="grid">
+  <section class="panel" aria-label="증례">
+    <div class="meta"><span class="no" id="cno"></span><span class="pt" id="cpt"></span><span class="tag" id="cmode"></span></div>
+    <pre class="chart" id="chart"></pre>
+    <label for="mine" class="hint">내 처방 (먼저 적고 정답을 보세요. 저장되지 않습니다)</label>
+    <textarea id="mine" placeholder="예: 항히 off, 뮤테란 100 tid, 식염수, D10 재평가"></textarea>
+    <div class="btns">
+      <button class="btn primary" id="reveal">정답 보기</button>
+      <button class="btn" id="next">새 증례</button>
+      <button class="btn" id="same">같은 유형 다시</button>
+      <button class="btn" id="copy">차트 복사</button>
+    </div>
+    <p class="hint">단축키: Enter 정답 보기 · N 새 증례 (입력 칸 밖에서)</p>
+  </section>
+  <section class="panel" aria-label="정답" id="ans"></section>
+</div>
+<details id="statsBox"><summary>유형별 기록</summary><div class="tbl" id="stats"></div><div class="btns" style="margin-top:10px"><button class="btn" id="reset">기록 지우기</button><span class="hint" id="resetMsg"></span></div></details>
+<details><summary>EMR 양식 v2 코드표</summary><pre class="codes">경과   I 좋아짐 · S 그대로 · W 나빠짐 · R 좋아지다 다시 나빠짐
+F      F3d 열 3일째 · F- 없음 · F-(~D3) D3까지 있었음
+AP     해열제 간격  q4&gt;q8 벌어짐(호전) · q8&gt;q4 짧아짐
+R      c 맑음 · m 흰 점액 · y 노랑·초록 + s 끈적 · pnd 후비루 · uni 한쪽 악취
+C      d 마른 · w 젖은 · b 개짖는 · p 발작성   @L 눕자마자 · N 새벽 · A 아침 가래 · M 식후 · X 운동   3wk 기간
+Abx    AMX · AMXh · AC14 · CEF2 · CFD · CFX · AZ   D3 복용일   r: I 좋아짐 · P 부분 · N 무반응 · R 재악화
+cx     ok · miss · vom · dia
+Nose   IT n 정상 · p 창백 · r 선홍 · h 비후   bog+ 물컹   MM+ 중비도 고름
+TM     N · E 발적만 · B 팽륜 · OME 삼출액
+GI     V/D 횟수 · bile 초록 구토 · blood 혈변 · UO 마지막 소변(시간) · ORS - / ok / vom
+CDS    a 모습 · e 눈 · m 입안 · t 눈물 (각 0–2)  0 없음 · 1–4 경도~중등도 · 5–8 중증
+FWS    post-AP play/lethargic · PO/UO nl · src 원인 부위 · vacc · Sz s 단순 / c 복합
+KD     conj · oral · rash · ext · LN · BCG  (+ 개수/5)
+Flu    RAT · &lt;48h / &gt;48h · HR 고위험
+Skin   whl 두드러기 · tgt 과녁 · mp 반점구진 · ves 물집 · vz 수두형 · crust 꿀색 딱지 · sp 사포 · pete 점상출혈 · pit 움푹 파인 궤양
+       mig 움직임 · fix 고정 · sys 전신(wh · voice · vom · col)
+UA     (bag · cath · cc)  LE · Nit · WBC · Cx pend/neg/pos/ESBL
+Hx     AR 알레르기비염 · AD 아토피 · BA 천식 · FHx-AR 비염 가족력 · rOM 반복 중이염</pre></details>
+<p class="hint">진료 보조 학습 도구입니다. 용량은 지침·국내 허가사항 기준이며, 처방 전 보유 제품 라벨을 확인하세요. 최종 판단은 임상의의 몫입니다.</p>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+// ===== 처방 전 체크 규칙 엔진 (교과서 1권 기준) =====
+// S: 선택값 {key: string | string[]}, ctx: {ageM, ageLabel, sex, wt, hx, cfg}
+function rxEngine(S, ctx){
+  const has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v;
+  const g=k=>S[k]||'';
+  const W=ctx.wt>0?ctx.wt:null, A=ctx.ageM, cfg=ctx.cfg||{};
+  const R1=x=>Math.round(x*10)/10, R0=x=>Math.round(x);
+  const yrs=A==null?null:A/12;
+  const out={alerts:[],axes:[],dx:[],abx:[],orders:[],avoid:[],fu:[],warn:[],A:[],P:[],F:[]};
+  const order=(ko,en)=>{out.orders.push(ko);out.P.push(en)};
+  const avoid=t=>{if(!out.avoid.includes(t))out.avoid.push(t)};
+  const mg=(perKg,unit='mg')=>W?`${R0(W*perKg)} ${unit}`:`${perKg} ${unit}/kg`;
+  const mgR=(a,b)=>W?`${R0(W*a)}–${R0(W*b)} mg`:`${a}–${b} mg/kg`;
+  const mL=(mgv,conc)=>conc>0?` (${R1(mgv/conc)} mL)`:'';
+  const mLR=(a,b,conc)=>conc>0&&W?` (${R1(W*a/conc)}–${R1(W*b/conc)} mL)`:'';
+  if(!W)out.warn.push('체중이 없어 mg/kg로만 표시합니다. 체중을 입력하세요.');
+  if(A==null)out.warn.push('나이가 없어 연령 제한을 확인할 수 없습니다. 나이를 선택하세요.');
+  const lt=m=>A!=null&&A<m, ge=m=>A!=null&&A>=m;
+
+  // ---- 입력 해석 ----
+  const dayRaw=g('day'); const day=dayRaw==='D10+'?10:(parseInt(dayRaw.replace('D',''))||null);
+  const course=g('course');
+  const fever=g('fever')&&g('fever')!=='없음'?g('fever'):'';
+  const fdays=parseInt(g('fdays'))||0;
+  const rhin=g('rhin'); const sticky=has('rhinx','끈적함'); const pnd=has('rhinx','후비루');
+  const uniFoul=has('rhinx','한쪽만 악취');
+  const muc=g('muc');
+  const cough=g('cough')&&g('cough')!=='없음'?g('cough'):'';
+  const cdur=g('cdur');
+  const tmR=g('tmr'), tmL=g('tml');
+  const abx=g('abx')&&g('abx')!=='없음'?g('abx'):''; const abxDay=parseInt(g('abxday'))||0;
+  const resp=g('resp'); const comp=g('comp');
+  const hx=(ctx.hx||'');
+  const allergyBg=muc==='창백·물컹'||has('nose','가려움·코 비빔')||/알레르기비염|비염 가족력|아토피|천식/.test(hx);
+  const allergyPattern=muc==='창백·물컹'||(has('nose','재채기')&&has('nose','가려움·코 비빔'));
+  const thick=sticky||(rhin==='노랑·초록'&&(day||0)>=4)||cough==='젖은';
+  const sev=S.sev||[];
+
+  // ---- 중증 소견 ----
+  if(sev.length||has('lung','흉곽 함몰')){
+    out.alerts.push('치료 강도 상향 신호: '+[...sev,...(has('lung','흉곽 함몰')?['흉곽 함몰']:[])].join(', ')+' — 4축 처방보다 먼저 판단하십시오.');
+    out.A.push('Severe signs: '+[...sev,...(has('lung','흉곽 함몰')?['retraction']:[])].map(en).join(', ')+'.');
+  }
+  if(lt(3)&&fever) out.alerts.push('생후 3개월 미만 발열 — 감기 흐름과 별개로 평가하십시오.');
+  if(uniFoul) out.warn.push('한쪽 코만 악취 나는 콧물 → 비강 이물 확인 (가짜 실패: 진단 오류).');
+
+  // ---- 진단 후보 ----
+  const aomR=tmR==='팽륜', aomL=tmL==='팽륜', aom=aomR||aomL, aomBi=aomR&&aomL;
+  const ome=!aom&&(tmR==='삼출액'||tmL==='삼출액');
+  const sinPersist=day>=10&&course!=='좋아지는 중';
+  const sinWorse=course==='좋아지다 다시 나빠짐'&&(day||0)>=5;
+  const sinSevere=fever==='39 이상'&&fdays>=3&&(rhin==='노랑·초록'||sticky);
+  const sinus=sinPersist||sinWorse||sinSevere;
+  const croup=cough==='개 짖는 소리';
+  const pbb=cough==='젖은'&&cdur==='4주 이상'&&!has('lung','천명');
+  const pertussis=cough==='발작성';
+  const crackles=has('lung','국소 수포음');
+  const betaLactam=/amox|세팔로/.test(abx);
+  const myco=ge(60)&&(cough==='마른'||crackles)&&(fever||crackles)&&(((day||0)>=5)||(betaLactam&&abxDay>=3&&resp==='그대로'));
+  const gasPos=g('radt')==='양성';
+  const gasTest=!gasPos&&g('radt')!=='음성'&&g('throat')==='삼출물'&&!cough&&!rhin.match(/맑음|흰|노랑/)&&ge(36);
+  const postnasal=has('ctime','눕자마자')||has('ctime','아침 가래')||pnd;
+  const hyper=(has('ctime','새벽')||has('ctime','운동·웃음 시'))&&cough==='마른'&&(cdur==='2–4주'||cdur==='4주 이상'||/천식/.test(hx));
+  const reflux=has('ctime','식후');
+  const wheeze=has('lung','천명');
+
+  // ---- 4축 ----
+  let ax1='병일 미입력';
+  if(day){ax1=`D${day===10?'10+':day}`+(course?` · ${course}`:'');
+    if(day<=3)ax1+=' → 마르게 하는 시기 (점액용해제 불필요)';
+    else if(day<=7)ax1+=' → 묽게 하는 시기 (항히스타민 끔 [P])';
+    else ax1+=' → 회복기·후비루 잔존 (중추성 진해제 X)';}
+  out.axes.push(['축1 병일',ax1]);
+  const mucMap={'창백·물컹':'알레르기 → 2세대 항히 + INCS (± 몬테루카스트)','선홍·부종':'바이러스 급성기 → 식염수·보습 중심','중비도 고름':'세균성 부비동염 의심 → 항생제 + 점액용해제 + INCS, 항히 끔','비후(색 정상)':'비후성 비염 → INCS 장기 (± 몬테루카스트)','정상':'정상'};
+  out.axes.push(['축2 점막',muc&&muc!=='안 봄'?`${muc} → ${mucMap[muc]||''}`:'안 봄 — 하비갑개 색·부종·중비도 확인 권장']);
+  let ax3='기침 없음';
+  if(cough){const t=[];if(croup)t.push('크룹');if(pertussis)t.push('백일해 의심');if(pbb)t.push('PBB 의심');
+    if(postnasal)t.push('후비루형(원인: 코)');if(hyper)t.push('기도과민형(원인: 기도)');if(reflux)t.push('역류형(원인: 위)');
+    ax3=`${cough} 기침${cdur?' · '+cdur:''} → ${t.length?t.join(', '):'표현형 미분류 — 기침 시점 확인'}`;}
+  out.axes.push(['축3 기침',ax3]);
+  out.axes.push(['축4 점도',thick?'끈적함 → 점액용해제 고려 (2세 이상)':(rhin==='맑음'?'묽음 → 점액용해제 불필요':'—')]);
+
+  // ---- 연령 공통 경고 ----
+  if(lt(24)) out.warn.push('2세 미만: 진해제·점액용해제·충혈완화제·시네츄라·아바비스·몬테루카스트 츄정 쓰지 않음. 해열제·식염수·수분이 기본.');
+  if(lt(144)){avoid('코대원(dihydrocodeine) — 12세 미만 금기');avoid('슈다페드(pseudoephedrine) — 12세 미만');}
+
+  // ---- 항생제 판단 ----
+  const ab=out.abx;
+  const amoxStock=!!cfg.amox, clinStock=!!cfg.clinda;
+  const amcl=(days)=>{const v=W?` = 1회 ${R1(W*0.375)} mL 하루 2회`:' (1회 mL = 체중×0.375)';return {ko:`amox/clav 14:1 (amoxicillin 90 mg/kg/일 분2)${v}${days?', '+days:''}`,en:`Amox/clav 14:1 90 mg/kg/day bid${W?' '+R1(W*0.375)+' mL bid':''}${days?' x '+days.replace('일',' days'):''}`}};
+  const amoxHi=(days)=>({ko:`amoxicillin 고용량 90 mg/kg/일 분2 = 1회 ${mg(45)}${days?', '+days:''}`,en:`Amoxicillin 90 mg/kg/day bid (${mg(45)} bid)${days?' x '+days.replace('일',' days'):''}`});
+  const aomDays=()=>{if(lt(24)||fever==='39 이상')return '10일';if(lt(72))return '7일';return '5–7일'};
+  const lastStep=()=>{const c=`clindamycin 30–40 mg/kg/일 분3 = 1회 ${W?R0(W*10)+'–'+R0(Math.min(W*40/3,600))+' mg':'10–13 mg/kg'} 하루 3회`;
+    const c3=`cefdinir 14 mg/kg/일 분2 = 1회 ${mg(7)} (또는 cefpodoxime 10 mg/kg/일 분2 = 1회 ${mg(5)})`;
+    order(`${c} + ${c3}`+(clinStock?'':' — ※ clindamycin 미보유: 보강 전까지는 고막천자·배양 = 치료 강도 상향 신호'),`Clindamycin 30-40 mg/kg/day tid + cefdinir 14 mg/kg/day bid`);};
+
+  if(abx){
+    const label=`${abx} ${abxDay?abxDay+'일째':''}`;
+    out.dx.push('항생제 복용 중: '+label);
+    if(abxDay&&abxDay<2){ab.push('복용 48시간 미만 → 재평가 시점 아님. 현행 유지, 해열제 간격 관찰.');out.A.push(`On ${en(abx)} D${abxDay}, too early to judge (<48h).`);out.P.push('Continue current antibiotic.');}
+    else if(comp&&comp!=='양호'){
+      ab.push(`가짜 실패 ① 순응도 (${comp}) → 단계 상향 아님.`);
+      if(comp==='설사로 중단') ab.push('클라불란산 설사 의심 → 14:1 제형·용량 확인, 식사와 함께, 정장제. 같은 단계 유지.');
+      else if(comp==='토함·뱉음') ab.push('쓴맛·구토 → 같은 단계의 다른 제형·계열로 수평 변경.');
+      else ab.push('복약 교육 후 같은 약 유지 (시간 간격 지키기).');
+      out.A.push(`Pseudo-failure: compliance (${en(comp)}).`);out.P.push('No escalation. Fix compliance / same-level switch.');
+    } else if(resp==='좋아짐'){ab.push('반응 좋음 → 유지, 기간 채움.');out.A.push(`${en(abx)} D${abxDay}, responding.`);out.P.push('Continue antibiotic, complete course.');}
+    else if(resp==='열은 내림·콧물기침 남음'){ab.push('부분반응 = 정상 경과 → 유지, 기간만 채움. 콧물·기침은 판정에 쓰지 않음.');out.A.push('Partial response (afebrile, residual URI sx) - expected course.');out.P.push('Continue antibiotic, complete course.');}
+    else if(resp==='좋아지다 다시 열'){ab.push('재악화 → 재진찰 먼저 (새 바이러스·합병증·임의 중단). 바로 3세대로 점프하지 않음.');out.A.push('Re-worsening after improvement - re-examine (new viral infection / complication / adherence).');out.P.push('No reflex escalation.');}
+    else if(resp==='그대로'){
+      if(g('antiint')==='간격 벌어짐'){ab.push('열은 남았지만 해열제 간격이 벌어짐 → 반응 중으로 판단, 유지.');out.A.push('Antipyretic interval widened - responding.');out.P.push('Continue antibiotic.');}
+      else{
+      ab.push('무반응 (48–72h) — 가짜 실패 4종(순응도·용량·진단·합병증) 배제 후 단계 상향:');
+      out.A.push(`No response to ${en(abx)} at D${abxDay}.`);
+      if(abx==='마크로라이드'){ab.push('마크로라이드 불응 → 내성 간주. 다른 마크로라이드로 바꾸지 않음. doxycycline 2–4 mg/kg/일 분2(미보유, 8세 미만은 이득>위해일 때) 또는 스테로이드 판단 = 치료 강도 상향 신호.');out.P.push('Macrolide-refractory: consider doxycycline / steroid.');}
+      else if(myco&&betaLactam){ab.push('β-lactam 무반응 + 마이코플라스마 단서 → 축 전환: 마크로라이드.');order(`azithromycin 1일차 ${W?R0(Math.min(W*10,500))+' mg':'10 mg/kg'}, 2–5일차 ${W?R0(Math.min(W*5,250))+' mg':'5 mg/kg'} 하루 1회`+(cfg.azi>0&&W?` (${R1(Math.min(W*10,500)/cfg.azi)} mL → ${R1(Math.min(W*5,250)/cfg.azi)} mL)`:''),'Azithromycin 10 mg/kg D1, 5 mg/kg D2-5');}
+      else if(abx==='amox(표준)'){ab.push('표준 용량 실패 → 가짜 실패 ② 용량 부족 가능성. 고용량으로 먼저.');const o=amoxStock?amoxHi(''):amcl('');order(o.ko,o.en);}
+      else if(abx==='amox 고용량'){ab.push('amoxicillin 실패 → β-lactamase 균 가능성 → 클라불란산 추가.');const o=amcl('');order(o.ko,o.en);}
+      else if(abx==='amox/clav'){ab.push('amox/clav 고용량 실패 → PRSP(자물쇠 변형) 가능성. 클라불란산 증량·경구 3세대 단독은 무의미. ceftriaxone 불가 → 경구 마지막 단계:');lastStep();}
+      else if(/세팔로/.test(abx)){ab.push('세팔로스포린 무반응 → 같은 계열 수평 이동 X. clindamycin + 3세대 (비정형 의심 시 마크로라이드).');lastStep();}
+      else ab.push('약 이름을 선택하면 다음 단계를 계산합니다.');
+      }
+    } else ab.push('반응(좋아짐/부분반응/그대로/재악화)을 선택하면 판정합니다.');
+  } else {
+    let started=false;
+    if(aom){
+      const bilat=aomBi, severe=fever==='39 이상';
+      let must=lt(6)||severe||(lt(24)&&bilat)||sev.length>0;
+      out.dx.push(`급성 중이염 ${bilat?'양측':'편측'}${severe?' (중증)':''}`);
+      out.A.push(`AOM ${bilat?'both':(aomR?'Rt':'Lt')}${severe?', severe':''}.`);
+      if(!must) ab.push('관찰 선택 가능 [G]: 진통제 + 48–72시간 안에 호전 없으면 항생제 시작 (재진 약속 또는 미리 처방). 아래는 항생제를 쓸 때의 처방.');
+      const clavFirst=has('flags','최근 30일 내 항생제')||has('conj','화농성 결막염');
+      if(clavFirst) ab.push('최근 30일 내 항생제 또는 결막염 동반 → 처음부터 amox/clav.');
+      const o=(!clavFirst&&amoxStock)?amoxHi(aomDays()):amcl(aomDays());
+      if(!clavFirst&&!amoxStock) ab.push('원칙은 amoxicillin 고용량 — 미보유로 amox/clav 14:1 대체 (2차 단계를 미리 소모함).');
+      order((must?'':'[관찰 대신 쓸 경우] ')+o.ko,o.en);started=true;
+      out.F.push('Reassess at 48-72h (Tmax, antipyretic interval, irritability).');
+    }
+    if(sinus&&!started){
+      const why=sinPersist?'10일 이상 호전 없음':sinWorse?'이중 악화':'39℃+화농 3일';
+      out.dx.push(`세균성 부비동염 (${why}) [G]`);out.A.push(`Acute bacterial sinusitis (${sinPersist?'persistent >=10d':sinWorse?'worsening':'severe onset'}).`);
+      if(sinPersist&&!sinWorse&&!sinSevere) ab.push('지속형은 3일 더 관찰하는 선택도 가능 [G].');
+      const o=amcl('10–14일 (또는 증상 소실 후 7일)');order(o.ko,o.en);started=true;
+      ab.push('항생제를 바꾸기 전에 배액(식염수 세척 + INCS) 먼저 확인.');
+      out.F.push('Reassess at 72h.');
+    }
+    if(gasPos&&!started){
+      out.dx.push('A군 연쇄상구균 인두염 (RADT+)');out.A.push('GAS pharyngitis (RADT+).');
+      if(amoxStock) order(`amoxicillin 50 mg/kg/일 하루 1회 = ${W?R0(Math.min(W*50,1000))+' mg':'50 mg/kg'} (최대 1,000 mg), 10일`,'Amoxicillin 50 mg/kg qd x 10 days');
+      else order(`cefadroxil 30 mg/kg/일 하루 1회 = ${W?R0(Math.min(W*30,1000))+' mg':'30 mg/kg'} (최대 1 g), 10일`,`Cefadroxil 30 mg/kg qd${W?' ('+R0(Math.min(W*30,1000))+' mg)':''} x 10 days`);
+      ab.push('좋아져도 10일 완주 — 류마티스열 예방이 목적.');started=true;
+    }
+    if(gasTest) ab.push('편도 삼출물 + 기침·콧물 없음 + 3세 이상 → RADT 검사 후 양성일 때만 항생제.');
+    if(myco&&!started){
+      out.dx.push('마이코플라스마 의심 [E]');out.A.push('Suspected M. pneumoniae.');
+      order(`azithromycin 1일차 ${W?R0(Math.min(W*10,500))+' mg':'10 mg/kg'}, 2–5일차 ${W?R0(Math.min(W*5,250))+' mg':'5 mg/kg'} 하루 1회`+(cfg.azi>0&&W?` (${R1(Math.min(W*10,500)/cfg.azi)} mL → ${R1(Math.min(W*5,250)/cfg.azi)} mL)`:''),'Azithromycin 10 mg/kg D1, 5 mg/kg D2-5');
+      ab.push('국내 마크로라이드 내성 81.4% — 48–72시간 해열 없으면 내성 간주 (다른 마크로라이드로 바꾸지 않음).');started=true;
+      out.F.push('Reassess at 48-72h; if febrile, treat as macrolide-resistant.');
+    }
+    if(crackles&&!started){
+      out.dx.push('폐렴 의심 (국소 수포음)');out.A.push('Suspected pneumonia (focal crackles).');
+      const o=amoxStock?amoxHi('7–10일'):amcl('7–10일');order(o.ko,o.en);started=true;
+      ab.push('빠른 호흡·저산소증·처짐 → 치료 강도 상향 신호. 영상 판단.');
+    }
+    if(pbb&&!started){
+      out.dx.push('PBB 의심 (4주+ 젖은 기침) [G]');out.A.push('Protracted bacterial bronchitis.');
+      const o=amcl('2주');order(o.ko,o.en);started=true;avoid('진해거담제 돌려막기');
+    }
+    if(pertussis){
+      out.dx.push('백일해 의심');out.A.push('Suspected pertussis.');
+      const d1=lt(6)?'10 mg/kg 하루 1회 5일':`1일차 ${W?R0(Math.min(W*10,500))+' mg':'10 mg/kg'}, 2–5일차 ${W?R0(Math.min(W*5,250))+' mg':'5 mg/kg'}`;
+      order(`azithromycin ${d1} (검사와 함께)`,'Azithromycin (pertussis regimen), test');started=true;
+    }
+    if(ome){out.dx.push('삼출성 중이염 (OME)');out.A.push('OME.');ab.push('OME → 관찰 [G]. 항히스타민·코막힘약·항생제·스테로이드 쓰지 않음.');avoid('항히스타민·코막힘약 (OME)');out.F.push('Recheck in 3 months; hearing if persistent.');}
+    if(!started&&!ome){
+      ab.push('항생제 기준 없음.'+(rhin==='노랑·초록'?' 콧물 색 변화는 세균의 증거가 아님 [G].':'')+(day&&day<10&&!sinWorse?` D${day} — 10일 지속·이중 악화·39℃+화농 3일 기준 미충족.`:''));
+      out.P.push('No antibiotic indicated.');
+      if(croup){out.dx.push('크룹');out.A.push('Croup.');}
+      if(hyper){out.dx.push('기도과민형 기침 (감기 후 지연성)');}
+      if(!out.dx.length){out.dx.push(`감기 (URI)${day?' D'+day:''}`);out.A.push(`URI${day?' D'+day:''}${postnasal&&cough?', post-nasal drip type cough':''}${hyper?', airway hyperreactivity type cough':''}.`);}
+    }
+  }
+
+  // ---- 대증 ----
+  if(fever){
+    const ac=cfg.apap>0?cfg.apap:0, dx=cfg.dexi>0?cfg.dexi:0;
+    order(`해열: 아세트아미노펜 1회 ${mgR(10,15)}${mLR(10,15,ac)}, 4–6시간 간격, 하루 5회까지`,`Acetaminophen ${mgR(10,15)} q4-6h prn`);
+    if(!lt(6)) order(`또는 덱시부프로펜 1회 ${mgR(5,7)}${mLR(5,7,dx)}, 4–6시간, 하루 4회까지`,`or Dexibuprofen ${mgR(5,7)} q4-6h prn`);
+    if(!ac||!dx) out.warn.push('해열제 농도 미설정 — 설정에서 입력하면 mL가 계산됩니다.');
+  }
+  order('생리식염수 코 세척/분무, 수분 충분히','NS nasal irrigation, fluids');
+
+  // 항히스타민
+  const levoc=()=>{if(lt(12))return null;if(lt(24))return ['잘티진액 1.25 mg = 2.5 mL 하루 1회','Levocetirizine 1.25 mg qd'];if(lt(72))return ['잘티진액 1.25 mg = 2.5 mL 하루 2회','Levocetirizine 1.25 mg bid'];return ['잘티진액 5 mg = 10 mL 하루 1회','Levocetirizine 5 mg qd'];};
+  const ahOff=(sinus&&!allergyBg)||((day||0)>=4&&thick&&!allergyPattern)||ome;
+  if(allergyPattern&&!ahOff){const l=levoc();if(l)order('2세대 항히스타민: '+l[0],l[1]);else avoid('레보세티리진 — 1세 미만 금기');}
+  else if(sinus&&allergyBg){const l=levoc();if(l)order('2세대 항히스타민 유지 (알레르기 바탕 → 배액에 도움 [P]): '+l[0],l[1]);avoid('1세대 항히스타민 (부비동염)');}
+  else if(ge(24)&&day&&day<=3&&rhin==='맑음'&&(has('nose','재채기')||has('rhinx','양 많음'))){const l=levoc();if(l)order('(필요 시) 2세대 항히스타민: '+l[0],l[1]);}
+  if(ahOff&&!ome&&!(sinus&&allergyBg)) avoid('항히스타민 — '+(ome?'OME':sinus?'부비동염(알레르기 바탕 없음)':'D4 이후 끈적한 분비물: 배액 방해 [P]'));
+
+  // INCS
+  const incsWhy=allergyPattern||sinus||muc==='비후(색 정상)'||(postnasal&&cough)||((day||0)>=4&&has('nose','코막힘'));
+  if(incsWhy&&!ome){ if(ge(24)) order('비강 스테로이드(아바비스나잘): 각 콧구멍 1회 1일 1회'+(ge(144)?' (12세 이상 2회)':'')+' — 며칠 꾸준히 (허가 연령 라벨 확인)','Fluticasone furoate nasal 1 spray each nostril qd'); else avoid('아바비스나잘 — 2세 미만'); }
+
+  // 점액용해제
+  if(thick&&!(hyper&&!postnasal)){
+    if(ge(24)){ if(sticky||muc==='중비도 고름'){ const d=lt(72)?['100 mg 하루 3회','100 mg tid']:['200 mg 하루 2회','200 mg bid']; order('점액용해제: acetylcysteine(뮤테란) '+d[0],'Acetylcysteine '+d[1]); }
+      else { const d=lt(60)?['7.5 mg 하루 3회','7.5 mg tid']:['15 mg 하루 2–3회','15 mg bid-tid']; order('점액용해제: ambroxol '+d[0],'Ambroxol '+d[1]); } }
+    else avoid('점액용해제 (뮤테란·암브록솔 시럽) — 2세 미만');
+  } else if(day&&day<=3&&rhin==='맑음') avoid('점액용해제 — D1–3 묽은 콧물');
+
+  // 기침
+  if(croup){
+    const pr=W?`${R0(W)} mg = 피알디 0.1% ${R0(W)} mL`:'1 mg/kg';
+    if(cfg.dexa) order(`크룹: dexamethasone 0.15–0.6 mg/kg 1회 = ${mgR(0.15,0.6)} [G]`,'Dexamethasone 0.15-0.6 mg/kg PO once');
+    else order(`크룹: prednisolone 1 mg/kg 1회 = ${pr} [E] (dexamethasone 미보유)`,`Prednisolone 1 mg/kg PO once${W?' ('+R0(W)+' mg)':''}`);
+    avoid('진해제 (크룹)');out.F.push('Return immediately if stridor at rest / retraction / lethargy.');
+  }
+  if(hyper||wheeze){
+    if(ge(24)){const m=ge(72)?'5 mg':'4 mg';order(`기도과민형: montelukast ${m} 하루 1회 저녁 — 악몽·행동 변화 시 알려 달라고 고지 [FDA 경고]`,`Montelukast ${m} qhs`);}
+    if(ge(6)){const p=lt(36)?'0.5 mg':lt(108)?'1 mg':'2 mg';order(`또는/및 툴로부테롤 패취 ${p} 하루 1회 (가슴·등·팔, 매일 위치 변경)`,`Tulobuterol patch ${p} qd`);}
+    if(hyper&&!postnasal) avoid('점액용해제 (기도과민형)');
+  }
+  if(reflux) order('역류형: 자세·수유 조절 ± 단기 위산억제제','Positional/feeding measures ± short PPI');
+  if(cough&&postnasal) avoid('진해제·류코트리엔 (후비루형 — 원인은 코)');
+  if(cough==='마른'&&!hyper&&!croup&&!pertussis&&!postnasal){
+    if(ge(24)&&W){ if(W>=10&&W<20) order('(잠 못 잘 때) 제로레보 1회 18 mg = 3 mL 하루 3회, 6시간 이상 간격','Levodropropizine 18 mg tid'); else if(W>=20&&W<=30) order('(잠 못 잘 때) 제로레보 1회 30 mg = 5 mL 하루 3회, 6시간 이상 간격','Levodropropizine 30 mg tid'); }
+    else if(lt(24)) avoid('제로레보·시네츄라 — 2세 미만');
+  }
+  if(cough&&ge(12)&&(has('ctime','눕자마자')||has('ctime','새벽'))) order('밤 기침: 자기 전 꿀 2.5–5 mL (1세 이상)','Honey 2.5-5 mL at bedtime');
+  if(cough&&lt(12)) avoid('꿀 — 1세 미만');
+  if((day||0)>=8&&cough==='젖은') avoid('중추성 진해제 — 배출 방해');
+
+  // F/U
+  if(!out.F.length){ if(abx||out.orders.some(o=>/amox|cef|azith|clinda/.test(o))) out.F.push('Reassess at 48-72h (Tmax, antipyretic interval).'); else out.F.push(day&&day<10?`Return if fever >3 days, re-worsening, or no improvement by D10.`:'Return if worse.'); }
+  out.fu=out.F.slice();
+  return out;
+}
+
+// 한→영 변환 (EMR 출력용)
+const EN={'양호':'good','빠뜨림':'missed doses','토함·뱉음':'vomiting/spitting','설사로 중단':'stopped due to diarrhea','amox(표준)':'amoxicillin (standard)','amox 고용량':'amoxicillin (high dose)','amox/clav':'amox/clav','2세대 세팔로':'2nd-gen cephalosporin','3세대 세팔로':'3rd-gen cephalosporin','마크로라이드':'macrolide','기타':'other',
+'호흡곤란·함몰':'respiratory distress','안정 시 협착음':'stridor at rest','처짐·기면':'lethargy','탈수·못 먹음':'dehydration/poor intake','귀 뒤 부종':'postauricular swelling','눈 주위 부종':'periorbital swelling','개구 장애':'trismus','목 강직':'neck stiffness','점상출혈':'petechiae','흉곽 함몰':'retraction',
+'맑음':'clear','흰 점액':'white mucoid','노랑·초록':'yellow-green','끈적함':'sticky','양 많음':'profuse','후비루':'PND','한쪽만 악취':'unilateral foul',
+'마른':'dry','젖은':'wet','개 짖는 소리':'barking','발작성':'paroxysmal','눕자마자':'on lying down','새벽':'early morning (3-5 AM)','아침 가래':'AM sputum','식후':'after meals','운동·웃음 시':'with exercise/laughing',
+'2주 미만':'<2 wks','2–4주':'2-4 wks','4주 이상':'>4 wks','좋아지는 중':'improving','그대로':'no change','좋아지다 다시 나빠짐':'worsened after improvement',
+'알레르기비염':'allergic rhinitis','아토피피부염':'atopic dermatitis','천식':'asthma','비염 가족력':'FHx rhinitis','반복 중이염':'recurrent OM','없음':'none'};
+function en(s){return EN[s]||s}
+
+// EMR 텍스트 (원장님 서식)
+function buildEMR(S,ctx,o){
+  const has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v; const g=k=>S[k]||'';
+  const pm=b=>b?'+':'-';
+  const cough=g('cough')&&g('cough')!=='없음'?g('cough'):''; const rhin=g('rhin')&&g('rhin')!=='없음'?g('rhin'):'';
+  const fever=g('fever')&&g('fever')!=='없음'?g('fever'):'';
+  const L=[];
+  // 현 증상
+  const cur=[];
+  if(g('day'))cur.push(`${g('day')}${g('course')?', '+en(g('course')):''}.`);
+  if(fever)cur.push(`Fever ${fever.replace('39 이상','>=39').replace('–','-')}C${g('fdays')?' x '+g('fdays').replace('일','d').replace('+','+'):''}.`);
+  if(rhin)cur.push(`Rhinorrhea ${en(rhin)}${(S.rhinx||[]).length?', '+S.rhinx.map(en).join(', '):''}.`);
+  const nose=(S.nose||[]).map(x=>({'코막힘':'stuffiness','재채기':'sneezing','가려움·코 비빔':'nasal itching'}[x]));if(nose.length)cur.push(nose.join(', ')+'.');
+  if(cough)cur.push(`${en(cough)[0].toUpperCase()+en(cough).slice(1)} cough${(S.ctime||[]).length?', '+S.ctime.map(en).join(', '):''}${g('cdur')?', '+en(g('cdur')):''}.`);
+  if(has('conj','화농성 결막염'))cur.push('Purulent conjunctivitis +.');
+  L.push('[현 증상]',cur.length?cur.join('\n'):'없음','');
+  // 이전 투약
+  const prev=[];const abx=g('abx')&&g('abx')!=='없음'?g('abx'):'';
+  if(abx)prev.push(`${en(abx)} D${g('abxday')||'?'}${g('resp')?' - response: '+({'좋아짐':'improved','열은 내림·콧물기침 남음':'afebrile, residual sx','그대로':'no change','좋아지다 다시 열':'re-febrile after improvement'}[g('resp')]||''):''}.`);
+  if(has('flags','최근 30일 내 항생제'))prev.push('Abx within 30 days.');
+  if(g('antiint'))prev.push(`Antipyretic interval: ${({'변화 없음':'unchanged','간격 벌어짐':'widened','간격 짧아짐':'shortened'})[g('antiint')]}.`);
+  L.push('[이전 투약]',prev.length?prev.join('\n'):'없음','');
+  // 기타
+  const etc=[];if(ctx.wt)etc.push(`BW ${ctx.wt} kg.`);if(ctx.ageLabel)etc.push(`Age ${ctx.ageLabel.replace('세','y').replace('개월','mo').replace('신생아','newborn')}.`);
+  if(ctx.hx)etc.push('Hx: '+ctx.hx.split(', ').map(en).join(', ')+'.');
+  if(g('comp'))etc.push(`Compliance: ${en(g('comp'))}.`);
+  if(g('visit'))etc.push(g('visit')==='재진'?'F/U visit.':'First visit.');
+  L.push('[기타]',etc.length?etc.join(' '):'없음','');
+  // 신체 진찰
+  const sev=S.sev||[];
+  const C=!!cough, Sx=cough==='젖은'||has('ctime','아침 가래'), R=!!rhin;
+  const thr=g('throat'); const ti=thr==='발적'||thr==='삼출물';
+  const tm=v=>({'정상':'N','발적만':'E','팽륜':'bulging','삼출액':'effusion'}[v]||'N');
+  const lung=(S.lung||[]); let br='clear';
+  if(lung.length&&!(lung.length===1&&lung[0]==='clear')){br=lung.filter(x=>x!=='clear').map(x=>({'천명':'wheezing','국소 수포음':'focal crackles','흉곽 함몰':'retraction'}[x])).join(', ');}
+  if(sev.includes('안정 시 협착음'))br+=(br==='clear'?'':', ')+'stridor at rest';
+  const muc=g('muc');
+  L.push('[신체 진찰]',
+   `Fever ${pm(!!fever)}`,
+   `C/S/R ${pm(C)}/${pm(Sx)}/${pm(R)}  sn/stuff ${pm(has('nose','재채기'))}/${pm(has('nose','코막힘'))}  N - / V ${pm(g('comp')==='토함·뱉음')} / D ${pm(g('comp')==='설사로 중단')}`,
+   'Headache -  Dizziness -',
+   `oral/urination/condition ${sev.includes('탈수·못 먹음')?'dec/dec/dec':'-/-/-'}`,
+   `Mental: ${sev.includes('처짐·기면')?'Drowsy':'Alert'}  Pupil: Equal & Reactive`,
+   `C-LN: ${has('ln','앞목 압통')?'+ (tender)':'-'}`,
+   ...(muc&&muc!=='안 봄'?[`Nasal: ${({'정상':'IT N','창백·물컹':'IT pale, boggy edema','선홍·부종':'IT red, edema','중비도 고름':'IT red, MM pus +','비후(색 정상)':'IT hypertrophy, color N'})[muc]}${g('rhin')&&g('rhin')!=='없음'?', discharge '+en(g('rhin')):''}`]:[]),
+   'abd pain: -  rebound Td: -',
+   'NABS, RHB, s m, murmur-',
+   `breathing: ${br}`,
+   `throat inj Rt ${pm(ti)}/Lt ${pm(ti)}${thr==='삼출물'?' (exudate)':''}  PTH Rt -/Lt -`,
+   `TM Rt: ${tm(g('tmr'))}  TM Lt: ${tm(g('tml'))}`,'');
+  if(g('radt')&&g('radt')!=='안 함')L.splice(L.length-1,0,`RADT: ${g('radt')==='양성'?'+':'-'}`);
+  L.push('[평가 및 계획]',`A> ${o.A.join(' ')||'-'}`,`P> ${o.P.join('\n   ')||'-'}`,`F/U> ${o.F.join(' ')||'-'}`);
+  return L.join('\n');
+}
+
+
+// ===== 2권 주호소 엔진: 구토·설사 / 발열 / 발진 / 소변 =====
+function _base(ctx){
+  const W=ctx.wt>0?ctx.wt:null, A=ctx.ageM, cfg=ctx.cfg||{};
+  const R0=x=>Math.round(x), R1=x=>Math.round(x*10)/10, R2=x=>(Math.round(x*100)/100);
+  const out={alerts:[],axes:[],dx:[],abx:[],orders:[],avoid:[],fu:[],warn:[],A:[],P:[],F:[]};
+  const order=(ko,en)=>{out.orders.push(ko);if(en)out.P.push(en)};
+  const avoid=t=>{if(!out.avoid.includes(t))out.avoid.push(t)};
+  const lt=m=>A!=null&&A<m, ge=m=>A!=null&&A>=m;
+  const mg=(perKg,cap)=>W?`${R0(cap?Math.min(W*perKg,cap):W*perKg)} mg`:`${perKg} mg/kg`;
+  const mgR=(a,b)=>W?`${R0(W*a)}–${R0(W*b)} mg`:`${a}–${b} mg/kg`;
+  const mLR=(a,b,c)=>c>0&&W?` (${R1(W*a/c)}–${R1(W*b/c)} mL)`:'';
+  if(!W)out.warn.push('체중이 없어 mg/kg로만 표시합니다. 체중을 입력하세요.');
+  if(A==null)out.warn.push('나이가 없어 연령 제한을 확인할 수 없습니다. 나이를 선택하세요.');
+  const antipy=()=>{const ac=cfg.apap>0?cfg.apap:0,dx=cfg.dexi>0?cfg.dexi:0;
+    order(`해열·진통: 아세트아미노펜 1회 ${mgR(10,15)}${mLR(10,15,ac)}, 4–6시간, 하루 5회까지`,`Acetaminophen ${mgR(10,15)} q4-6h prn`);
+    if(!lt(6))order(`또는 덱시부프로펜 1회 ${mgR(5,7)}${mLR(5,7,dx)}, 4–6시간, 하루 4회까지`,`or Dexibuprofen ${mgR(5,7)} q4-6h prn`);
+    avoid('아스피린 — 소아 바이러스 질환 (라이 증후군)');};
+  const sevAlert=(sev,extra)=>{const s=[...(sev||[]),...(extra||[])];if(s.length){out.alerts.push('치료 강도 상향 신호: '+s.join(', '));out.A.push('Severe signs: '+s.map(enx).join(', ')+'.');}};
+  return {W,A,cfg,R0,R1,R2,out,order,avoid,lt,ge,mg,mgR,mLR,antipy,sevAlert};
+}
+const ENX={'처짐·기면':'lethargy','경련':'seizure','점상출혈':'petechiae','호흡곤란·함몰':'respiratory distress','창백·얼룩덜룩':'pallor/mottling','목 강직':'neck stiffness','대천문 팽륜':'bulging fontanelle','탈수':'dehydration',
+ '초록색 구토':'bilious vomiting','혈변':'bloody stool','물설사':'watery','점액변':'mucoid','어린이집 유행':'daycare outbreak','가족 같은 증상':'family cluster','최근 여행·날음식':'travel/raw food','다음·다뇨':'polyuria/polydipsia','복부 팽만':'abdominal distension','최근 항생제':'recent antibiotics',
+ '콧물·기침':'URI sx','목(인두)':'pharynx','귀':'ear','폐':'lung','소변 증상':'urinary sx','설사·구토':'GI sx','발진':'rash',
+ '양쪽 눈 충혈':'bilateral conjunctival injection','입술·혀 변화':'oral changes','손발 부종·발적':'extremity changes','목 림프절 1.5cm+':'cervical LN >=1.5 cm','BCG 부위 발적':'BCG site erythema',
+ '두드러기(부풀어 오름)':'wheals','과녁 모양':'target lesions','작은 물집':'vesicles','수두형 물집(여러 단계)':'varicella-like vesicles','꿀색 딱지':'honey-crusted','사포처럼 까슬':'sandpaper','반점·구진':'maculopapular','점상출혈(눌러도 안 사라짐)':'non-blanching petechiae','움푹 파인 궤양 무리':'punched-out erosions',
+ '얼굴':'face','몸통':'trunk','접히는 곳':'flexures','손발':'hands/feet','입안':'oral','기저귀 부위':'diaper area','두피':'scalp',
+ '쌕쌕·숨참':'wheeze/dyspnea','목소리 변화':'voice change','반복 구토':'repeated vomiting','처짐·실신':'collapse',
+ '열':'fever','배뇨통':'dysuria','빈뇨·급박뇨':'frequency/urgency','새로 생긴 야뇨·지림':'new enuresis','옆구리 통증':'flank pain','혈뇨':'hematuria'};
+function enx(s){return ENX[s]||s}
+const _has=(S,k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v;
+const _g=(S,k)=>S[k]||'';
+
+// ---------- 구토·설사 ----------
+function giEngine(S,ctx){
+  const b=_base(ctx);const {W,A,R0,out,order,avoid,lt,ge,antipy,sevAlert}=b;const has=(k,v)=>_has(S,k,v),g=k=>_g(S,k);
+  const cdsMap={look:['정상','보챔·목말라함','처짐·축 늘어짐'],eyes:['정상','약간 꺼짐','많이 꺼짐'],muc:['촉촉','끈적','마름'],tears:['있음','줄었음','없음']};
+  let cds=0,miss=[];for(const k in cdsMap){const i=cdsMap[k].indexOf(g(k));if(i<0)miss.push(k);else cds+=i;}
+  const full=!miss.length;
+  const vom=g('vomit'),dia=g('diarr');const vomN={'없음':0,'1–2회':2,'3–5회':4,'6회+':6}[vom]||0, diaN={'없음':0,'1–3회':3,'4–6회':6,'7회+':8}[dia]||0;
+  const fever=g('fever')&&g('fever')!=='없음';
+  // 위험 신호
+  const red=[];
+  if(has('color','초록색 구토'))red.push('초록색(담즙성) 구토 — 장회전이상·중장염전 가능');
+  if(has('flags','복부 팽만')||g('abdtd')==='반발통'||g('pain')==='심함·지속')red.push('심한 복통·팽만·반발통 — 외과적 복부 확인');
+  if(ge(6)&&lt(36)&&g('pain')==='간헐적'&&(has('color','혈변')||g('look')==='처짐·축 늘어짐'))red.push('간헐적 복통 + 혈변/처짐 (6개월–3세) — 장중첩증');
+  if(has('color','혈변')&&(g('fever')==='38.5–38.9'||g('fever')==='39 이상'||g('look')==='처짐·축 늘어짐'))red.push('혈변 + 고열/처짐 — 세균성 장염·패혈증 가능');
+  if(g('lastvoid')==='8–12시간'||g('lastvoid')==='12시간+')red.push('소변 8시간 이상 없음');
+  if(lt(6)&&(dia==='7회+'))red.push('6개월 미만 다량 설사');
+  if(has('flags','다음·다뇨'))red.push('구토 + 다음·다뇨 — 당뇨병성 케톤산증: 혈당·소변 케톤 확인');
+  if(full&&cds>=5)red.push(`중증 탈수 (임상 탈수 점수 ${cds})`);
+  sevAlert(S.sev,red);
+  const surgical=red.some(x=>/담즙성|외과적|장중첩|케톤산증/.test(x));
+  // 판단 요약
+  out.axes.push(['탈수 점수',full?`${cds}점 → ${cds===0?'탈수 없음':cds<=4?'경도–중등도':'중증'}`:`미완성 — ${miss.map(k=>({look:'모습',eyes:'눈',muc:'입안',tears:'눈물'})[k]).join('·')} 선택 필요`]);
+  out.axes.push(['구토·설사',`구토 ${vom||'?'} · 설사 ${dia||'?'}${S.color&&S.color.length?' · '+S.color.join(', '):''}${g('dur')?' · '+g('dur'):''}`]);
+  out.axes.push(['마지막 소변',g('lastvoid')||'미입력']);
+  out.axes.push(['ORS',g('ors')||'미입력']);
+  // 진단
+  const bloody=has('color','혈변');
+  if(surgical){out.dx.push('장염으로 단정하지 않음 — 위험 신호의 원인부터 평가');out.A.push('Red flags present - not attributed to simple gastroenteritis.');out.abx.push('위험 신호가 있어 ORS·지사·구토약 처방보다 원인 평가(초음파·혈당 등)가 먼저입니다 = 치료 강도 상향 신호.');out.F.push('Immediate evaluation.');
+    ['포타겔 등 디옥타헤드랄스멕타이트 — 2026.7 소아 적응증 삭제','loperamide — 소아 급성 설사에 쓰지 않음'].forEach(avoid);
+    const ex0={N:true,V:true,D:diaN>0,drowsy:g('look')==='처짐·축 늘어짐',abd:g('pain')&&g('pain')!=='없음',reb:g('abdtd')==='반발통',fever};
+    return {o:out,emr:{cur:[`Vomiting ${vom||'-'}, diarrhea ${dia||'-'}${S.color&&S.color.length?' ('+S.color.map(enx).join(', ')+')':''}.`],prev:[],etc:[],ex:ex0}};}
+  out.dx.push(bloody?'급성 장염 — 혈변 동반 (세균성 가능)':'급성 장염 (바이러스 추정)');
+  if(g('dur')==='7일+')out.dx.push('설사 1주 이상 — 지속성 설사: 일시적 유당불내증·기생충·세균 확인');
+  out.A.push(`Acute gastroenteritis${bloody?' with bloody stool':''}${full?`, ${cds===0?'no':cds<=4?'mild-moderate':'severe'} dehydration (CDS ${cds})`:''}.`);
+  // 수분
+  const lossD=W?`${R0(W*10)} mL`:'10 mL/kg', lossV=W?`${R0(W*2)} mL`:'2 mL/kg';
+  if(!full) b.out.abx.push('탈수 4항목(모습·눈·입안·눈물)을 고르면 ORS 양을 계산합니다.');
+  if(full&&cds===0){order(`탈수 없음: 평소대로 먹이고 손실만큼 ORS — 설사 1회마다 ${lossD}, 구토 1회마다 ${lossV}`,`No dehydration: ORS ${lossD}/stool, ${lossV}/emesis`);}
+  else if(full&&cds<=4){order(`ORS ${W?R0(W*50)+'–'+R0(W*100)+' mL':'50–100 mL/kg'}를 3–4시간에 걸쳐, 5 mL씩 1–2분마다 + 이후 설사 1회 ${lossD}·구토 1회 ${lossV}`,`ORS ${W?R0(W*50)+'-'+R0(W*100)+' mL':'50-100 mL/kg'} over 3-4 h, 5 mL q1-2min`);out.F.push('Re-evaluate in 3-4 h.');}
+  else if(full) out.abx.push('중증 탈수 → 경구 수분보충이 아니라 수액 = 치료 강도 상향 신호.');
+  order('ORS가 없으면 약국 경구수액(예: 페디라산) — 이온음료·주스는 쓰지 않음','');
+  // 구토
+  if(vomN>=4||g('ors')==='먹으면 토함'){
+    if(ge(6)){const o=!W?'8–15 kg 2 mg / 15–30 kg 4 mg / 30 kg 초과 8 mg':W<8?'(8 kg 미만 — 용량 확인)':W<=15?'2 mg':W<=30?'4 mg':'8 mg';order(`구토로 ORS가 어려우면 ondansetron 1회 ${o} (구강붕해정), 15–30분 뒤 ORS 재시작 [국내 허가 외]`,`Ondansetron ${o} ODT once if ORS fails`);}
+    else out.abx.push('6개월 미만 반복 구토 — ondansetron 대상 아님. 탈수·원인 재평가.');
+  }
+  // 설사
+  if(diaN>0){
+    if(ge(3)&&W){const r=W<9?'10 mg 1포':W<13?'10 mg 2포':W<=27?'30 mg 1포':'30 mg 2포';order(`racecadotril(하이드라섹) 1회 ${r} 하루 3회 (1.5 mg/kg), ORS와 함께, 최대 7일`,`Racecadotril 1.5 mg/kg tid with ORS`);}
+    else if(lt(3)) avoid('racecadotril — 3개월 미만 금기');
+    order('(선택) 프로바이오틱스: S. boulardii(비오플 250) 또는 LGG 5–7일 [E] — 균주별 효과','Probiotic (S. boulardii or LGG) 5-7 d');
+  }
+  if(fever) antipy();
+  order('모유 수유 계속, 수분 보충 후 평소 나이에 맞는 식사로 바로 (죽만 먹이는 제한식 불필요)','Continue breastfeeding, early refeeding with regular diet');
+  // 항생제
+  if(bloody){
+    if(has('contact','최근 여행·날음식')||fever) out.abx.push('혈변: 대변 배양 후 표적 치료 (예: 세균성 이질·캄필로박터 → azithromycin). 살모넬라는 3개월 미만·면역저하·균혈증 의심 때만 치료.');
+    out.abx.push('장출혈성 대장균(O157 등) 의심 시 항생제 쓰지 않음 — 용혈요독증후군 위험. 혈변 후 소변 감소·창백·부종 관찰.');
+  } else out.abx.push('항생제 필요 없음 — 바이러스성 장염.');
+  // 넣지 말 것
+  avoid('포타겔 등 디옥타헤드랄스멕타이트 — 2026.7 소아 적응증 삭제');
+  avoid('loperamide — 소아 급성 설사에 쓰지 않음');
+  avoid('메토클로프라미드 — 1세 미만 금기, 장염 구토 허가 없음');
+  avoid('돔페리돈 — 장염 구토에 권하지 않음 (12세 미만은 0.75 mg/kg/일·1주 제한)');
+  avoid('이온음료·주스로 수분 보충');
+  out.fu.push('초록색 구토·혈변·심한 복통·8시간 이상 소변 없음·처짐이면 바로 내원');
+  out.fu.push('등원: 설사·구토 멈추고 48시간 후 [E]. 손 씻기는 비누와 물 (노로)');
+  if(!out.F.length) out.F.push('Return if bilious vomit, bloody stool, no urine >8 h, lethargy.');
+  // EMR
+  const cur=[`Vomiting ${vom&&vom!=='없음'?'x'+vom.replace('회','').replace('+','+'):'-'}, diarrhea ${dia&&dia!=='없음'?'x'+dia.replace('회',''):'-'}${S.color&&S.color.length?' ('+S.color.map(enx).join(', ')+')':''}${g('dur')?', duration '+({'오늘':'today','1–2일':'1-2 d','3–6일':'3-6 d','7일+':'>=7 d'})[g('dur')]:''}.`];
+  if(g('lastvoid'))cur.push(`Last void ${({'6시간 이내':'<6 h','6–8시간':'6-8 h','8–12시간':'8-12 h','12시간+':'>12 h'})[g('lastvoid')]} ago.`);
+  if(g('pain')&&g('pain')!=='없음')cur.push(`Abdominal pain: ${g('pain')==='간헐적'?'intermittent':'severe/persistent'}.`);
+  if(S.contact&&S.contact.length)cur.push('Contact: '+S.contact.map(enx).join(', ')+'.');
+  if(S.flags&&S.flags.length)cur.push(S.flags.map(enx).join(', ')+'.');
+  const prev=[];if(g('ors'))prev.push(`ORS: ${({'안 해봄':'not tried','먹고 유지됨':'tolerated','먹으면 토함':'vomits ORS'})[g('ors')]}.`);
+  const etc=[];if(full)etc.push(`CDS ${cds} (appearance ${cdsMap.look.indexOf(g('look'))}, eyes ${cdsMap.eyes.indexOf(g('eyes'))}, mucosa ${cdsMap.muc.indexOf(g('muc'))}, tears ${cdsMap.tears.indexOf(g('tears'))}).`);
+  const ex={fever,N:vomN>0,V:vomN>0,D:diaN>0,oral:g('muc')==='끈적'||g('muc')==='마름',urin:g('lastvoid')&&g('lastvoid')!=='6시간 이내',cond:g('look')&&g('look')!=='정상',drowsy:g('look')==='처짐·축 늘어짐'||(S.sev||[]).includes('처짐·기면'),abd:g('pain')&&g('pain')!=='없음',reb:g('abdtd')==='반발통'};
+  return {o:out,emr:{cur,prev,etc,ex}};
+}
+
+// ---------- 발열 ----------
+function feverEngine(S,ctx){
+  const b=_base(ctx);const {W,A,R0,out,order,avoid,lt,ge,antipy,sevAlert}=b;const has=(k,v)=>_has(S,k,v),g=k=>_g(S,k);
+  const fd=g('fdays');const fdN=fd==='5일+'?5:(parseInt(fd)||0);
+  const young=g('young');
+  const neo=young==='28일 이하'||ctx.ageLabel==='신생아', under3=neo||young==='29일–3개월';
+  const red=[];
+  if(neo)red.push('생후 28일 이하 발열 — 모든 열이 강도 상향');
+  else if(under3)red.push('생후 3개월 미만 발열 — 상태가 좋아도 소변·혈액 평가 필요');
+  if(ctx.ageLabel==='1~5개월'&&!young)out.warn.push('1~5개월: 3개월 미만인지 “영아 나이”를 고르세요.');
+  if(g('after')==='해열 후에도 처짐')red.push('해열 후에도 처짐');
+  if(g('seizure')==='복합 열성경련')red.push('복합 열성경련');
+  if(g('intake')==='절반 미만'&&g('urine')==='줄었음')red.push('수분 섭취 절반 미만 + 소변 감소 (탈수)');
+  sevAlert(S.sev,red);
+  const src=(S.source||[]).filter(x=>x!=='없음');
+  if(under3){out.axes.push(['나이',neo?'28일 이하':'29일–3개월']);out.dx.push('3개월 미만 영아 발열');out.A.push('Fever in infant <3 months.');out.abx.push('해열제만 주고 귀가시키지 않음. 소변·혈액(염증 수치) 평가가 먼저 = 치료 강도 상향 신호 [G].');out.F.push('Immediate evaluation.');
+    return {o:out,emr:{cur:[`Fever x${fd?fd.replace('일','d'):'?'}${g('tmax')?', Tmax '+g('tmax'):''}.`,`Age ${neo?'<=28 d':'29 d-3 mo'}.`],prev:[],etc:[],ex:{fever:true,drowsy:g('after')==='해열 후에도 처짐'}}};}
+  out.axes.push(['나이',under3?(neo?'28일 이하':'29일–3개월'):(ctx.ageLabel||'미입력')]);
+  out.axes.push(['열',`${fd||'?'}${g('tmax')?' · 최고 '+g('tmax'):''}${g('after')?' · '+g('after'):''}`]);
+  out.axes.push(['원인 부위',src.length?src.join(', '):(has('source','없음')?'없음 (원인 불명 열)':'미입력')]);
+  out.axes.push(['먹기·소변',`${g('intake')||'?'} · ${g('urine')||'?'}`]);
+  // 원인 불명 열 → 소변
+  const fwos=has('source','없음')&&!src.length;
+  if(fwos&&!under3&&lt(36)){
+    out.dx.push('원인 불명 열 (3–36개월)');out.A.push('Fever without source.');
+    const risk=[];if(ctx.sex==='여')risk.push('여아');if(g('tmax')==='39.0–39.9'||g('tmax')==='40 이상')risk.push('39℃ 이상');if(fdN>=2)risk.push('열 2일 이상');
+    if(g('ua')==='농뇨(+)'){out.dx.push('요로감염 의심 → 주호소 “소변”으로 이어서 판단');out.abx.push('소변검사 농뇨(+): 채취 방법 확인 후 배양 — “소변” 주호소에서 항생제 계산.');}
+    else if(g('ua')==='음성')out.abx.push('소변검사 음성 — 요로감염 가능성 낮음. 경과 관찰.');
+    else out.abx.push(`소변 검사 권장 — 숨은 세균 감염 중 요로감염이 가장 흔함${risk.length?' (위험 요인: '+risk.join(', ')+')':''}. 백 소변 양성은 도뇨·중간뇨로 확인.`);
+  } else if(fwos&&ge(36)){out.dx.push('원인 부위 미확인 (3세 이상)');out.abx.push('목·귀·폐·소변·피부를 다시 확인. 소변 증상 질문.');}
+  if(src.length){out.dx.push('원인 부위 있는 열: '+src.join(', '));out.abx.push('원인 질환을 치료 — 콧물·기침·귀·목·폐는 “감기·호흡기”, 설사·구토는 “구토·설사”, 발진은 “발진”, 소변은 “소변” 주호소로.');out.A.push('Febrile illness, source: '+src.map(enx).join(', ')+'.');}
+  // 가와사키
+  const kw=(S.kawa||[]).length;
+  if(fdN>=5){
+    out.abx.push('열 5일 이상 → 가와사키병·요로감염·폐렴·중이염 재확인.');
+    if(kw>=4||(kw>=1&&has('kawa','BCG 부위 발적')&&kw>=3)){out.alerts.push(`가와사키병 의심 (주요 소견 ${kw}개) — 열 시작 10일 안 치료 필요 = 치료 강도 상향 신호`);out.dx.push('가와사키병 의심');out.A.push(`Suspected Kawasaki disease (${kw} criteria).`);}
+    else if(kw>=2) {out.warn.push(`가와사키 소견 ${kw}개 — 불완전 가와사키병 가능성(특히 영아). 염증 수치·심초음파 판단.`);}
+  }
+  // 열성경련
+  if(g('seizure')==='단순 열성경련'){
+    out.dx.push('단순 열성경련');out.A.push('Simple febrile seizure.');
+    out.abx.push('단순 열성경련: 뇌파·영상·혈액검사 일상적으로 하지 않음 [G]. 원인 질환 치료와 교육.');
+    order('경련 교육: 옆으로 눕히기, 입에 아무것도 넣지 않기, 시간 재기, 5분 넘으면 119','Febrile seizure education given');
+    order('해열제는 경련 재발을 막지 못함 — 편하게 하는 용도로만','');
+  }
+  // 인플루엔자
+  if(g('flu')&&g('flu')!=='해당 없음'){
+    const hr=lt(60)||/천식/.test(ctx.hx||'')||has('chronic','만성질환·면역저하');
+    const in48=g('onset')!=='48시간 초과';
+    out.dx.push('인플루엔자'+(g('flu')==='임상적 의심'?' (임상 진단)':''));out.A.push('Influenza'+(g('flu')==='임상적 의심'?' (clinical dx)':'')+'.');
+    if(hr||in48){
+      out.abx.push(hr?'고위험군(5세 미만·천식 등) → 시간과 관계없이 항바이러스제 [G]':'증상 48시간 이내 → 항바이러스제 고려 [G]');
+      if(A!=null&&A<12){order(`오셀타미비르 ${W?R0(W*3)+' mg':'3 mg/kg'} 하루 2회 5일 (1세 미만 3 mg/kg)`,'Oseltamivir 3 mg/kg bid x5d');}
+      else if(W){const d=W<=15?30:W<=23?45:W<=40?60:75;order(`오셀타미비르 ${d} mg 하루 2회 5일`,`Oseltamivir ${d} mg bid x5d`);
+        if(in48&&W>=10){const bx=W<20?10:W<40?20:40;order(`또는 발록사비르(조플루자) ${bx} mg 1회 (만 1세 이상, 48시간 이내)`,`or Baloxavir ${bx} mg once`);}}
+      else order('오셀타미비르 체중별 30/45/60/75 mg 하루 2회 5일 — 체중 입력 필요','');
+      order('치료 시작 후 적어도 2일간 아이를 혼자 두지 않기 (이상행동)','Advised not to leave child alone for 2 days');
+    } else out.abx.push('건강한 아이, 48시간 경과 — 항바이러스제 이득 적음. 대증 치료.');
+    out.fu.push('등원: 해열제 없이 열이 내린 뒤 24시간');
+  }
+  if(g('intake')==='절반 미만'||g('urine')==='줄었음') out.warn.push('수분 섭취·소변 감소 — 탈수 평가 (“구토·설사” 주호소의 탈수 점수 참고).');
+  antipy();
+  order('자는 아이를 해열제 먹이려 깨우지 않음. 미지근한 물수건 닦기는 권하지 않음','');
+  avoid('해열제 교대 복용 (일상적으로 권하지 않음 — 용량 실수)');
+  out.fu.push('처짐·호흡곤란·점상출혈·소변 감소·열 5일 이상이면 바로 내원');
+  if(!out.dx.length){out.dx.push('발열');out.A.push('Fever.');}
+  out.F.push(fdN>=3?'Reassess daily; Kawasaki/UTI if fever >=5 d.':'Return if fever >3 d, lethargy, or new signs.');
+  const cur=[`Fever x${fd?fd.replace('일','d'):'?'}${g('tmax')?', Tmax '+g('tmax').replace('40 이상','>=40'):''}. ${g('after')==='해열 후 잘 놂'?'Playful after antipyretic.':g('after')?'Lethargic even after antipyretic.':''}`.trim()];
+  if(g('intake'))cur.push(`Intake ${({'평소대로':'normal','절반 정도':'about half','절반 미만':'<half'})[g('intake')]}, urine ${g('urine')==='줄었음'?'decreased':'normal'}.`);
+  cur.push('Source: '+(src.length?src.map(enx).join(', '):(has('source','없음')?'none':'?'))+'.');
+  if(g('seizure')&&g('seizure')!=='없음')cur.push(g('seizure')==='단순 열성경련'?'Simple febrile seizure.':'Complex febrile seizure.');
+  if((S.kawa||[]).length)cur.push('Kawasaki features: '+S.kawa.map(enx).join(', ')+'.');
+  const prev=[];if(g('flu')&&g('flu')!=='해당 없음')prev.push(`Influenza: ${g('flu')==='독감 양성'?'RAT +':'clinical'}${g('onset')?', onset '+(g('onset')==='48시간 이내'?'<48 h':'>48 h'):''}.`);
+  const etc=[];if(g('vacc'))etc.push(`Vaccination ${g('vacc')==='완료'?'up to date':'incomplete'}.`);if(g('ua')&&g('ua')!=='안 함')etc.push(`UA: ${g('ua')==='음성'?'negative':'pyuria +'}.`);
+  const ex={fever:true,oral:g('intake')==='절반 미만',urin:g('urine')==='줄었음',cond:g('after')==='해열 후에도 처짐',drowsy:g('after')==='해열 후에도 처짐'||(S.sev||[]).includes('처짐·기면'),ln:has('kawa','목 림프절 1.5cm+')};
+  return {o:out,emr:{cur,prev,etc,ex}};
+}
+
+// ---------- 발진 ----------
+function rashEngine(S,ctx){
+  const b=_base(ctx);const {W,A,R0,R2,out,order,avoid,lt,ge,antipy,sevAlert}=b;const has=(k,v)=>_has(S,k,v),g=k=>_g(S,k);
+  const sh=S.shape||[],site=S.site||[],resp=(S.resp||[]).filter(x=>x!=='없음');
+  const fev=g('order')&&g('order')!=='열 없음';
+  const red=[];
+  // 아나필락시스
+  const anaph=(has('shape','두드러기(부풀어 오름)')||g('expo')==='음식·약 직후(2시간 내)')&&resp.length>0;
+  if(anaph){
+    const ep=W?Math.min(W*0.01,ge(144)?0.5:0.3):null;
+    out.alerts.push('아나필락시스 — 에피네프린 먼저: 1 mg/mL '+(W?`${R2(ep)} mL (${R2(ep)} mg)`:'0.01 mL/kg')+' 허벅지 바깥쪽 근육주사, 5–15분마다 반복 가능 · 119 · 눕히기(숨차면 앉히기)');
+    out.dx.push('아나필락시스');out.A.push('Anaphylaxis ('+resp.map(enx).join(', ')+').');out.P.push(`Epinephrine 1 mg/mL ${W?R2(ep)+' mL':'0.01 mL/kg'} IM thigh`);
+    out.abx.push('항히스타민·스테로이드는 보조 — 에피네프린을 늦추지 않음. 2차 반응 대비 관찰 = 치료 강도 상향.');
+    order('이후 자가주사기 처방·교육 ('+(W?(W<25?'0.15 mg':'0.3 mg'):'7.5–25 kg 0.15 mg / 25 kg 이상 0.3 mg')+'), 알레르기 평가','Epinephrine auto-injector prescription');
+  }
+  if(has('shape','점상출혈(눌러도 안 사라짐)')&&fev)red.push('열 + 눌러도 사라지지 않는 점상출혈 — 패혈증(수막구균 등) 가능, 즉시');
+  if(has('shape','움푹 파인 궤양 무리'))red.push('움푹 파인 궤양 무리 — 포진상 습진(헤르페스) 의심');
+  sevAlert(S.sev,red);
+  out.axes.push(['열과의 순서',g('order')||'미입력']);
+  out.axes.push(['모양',sh.length?sh.join(', '):'미입력']);
+  out.axes.push(['움직임',g('move')||'미입력']);
+  out.axes.push(['위치·가려움',`${site.join(', ')||'?'} · ${g('itch')||'?'}`]);
+  out.axes.push(['새 약',g('newdrug')?g('newdrug')+(g('drugcls')?' ('+g('drugcls')+')':''):'미입력']);
+  const levo=()=>{if(lt(12))return null;if(lt(24))return '레보세티리진 1.25 mg(잘티진 2.5 mL) 하루 1회';if(lt(72))return '레보세티리진 1.25 mg(2.5 mL) 하루 2회';return '레보세티리진 5 mg(10 mL) 하루 1회';};
+  // 두드러기 계열
+  if(has('shape','두드러기(부풀어 오름)')&&!anaph){
+    if(g('newdrug')==='1–3주 전 시작'&&g('joint')==='관절 통증·부종'){out.dx.push('혈청병 유사 반응'+(g('drugcls')==='세파클러'?' (세파클러)':''));out.A.push('Serum sickness-like reaction.');out.abx.push('원인 약 중단·차트 기록, 이후 그 약 피함. 관절통엔 진통제, 심하면 단기 스테로이드.');}
+    else if(g('newdrug')==='1–3일 전 시작'){out.dx.push('약물 두드러기 의심');out.A.push('Suspected drug-induced urticaria.');out.abx.push('의심 약 중단·기록. 즉시형(1시간 내)인지 확인 — 1권 14장.');}
+    else {out.dx.push('급성 두드러기'+(fev?' — 바이러스 감염 동반 가능성 높음':''));out.A.push('Acute urticaria.');}
+    const l=levo();if(l)order('2세대 항히스타민: '+l,'2nd-gen antihistamine');else avoid('레보세티리진 — 1세 미만 금기');
+    if(g('itch')==='심함(밤에 깸)'||has('site','얼굴'))out.abx.push('심한 두드러기·혈관부종: 프레드니솔론 단기(3–5일) 고려 [E].');
+    avoid('1세대 항히스타민 (졸림·학습 저하)');
+  }
+  if(has('shape','과녁 모양')&&g('move')==='고정(며칠 그대로)'){out.dx.push('다형 홍반 — 단순포진·마이코플라스마 확인');out.A.push('Erythema multiforme.');}
+  // 바이러스 발진
+  if(g('order')==='열 내린 뒤'&&ge(6)&&lt(36)&&(has('shape','반점·구진')||!sh.length)){out.dx.push('돌발진 (HHV-6)');out.A.push('Roseola.');out.abx.push('대증. 열성경련 동반 가능.');}
+  if(has('shape','사포처럼 까슬')&&fev){out.dx.push('성홍열 의심 → RADT');out.A.push('Suspected scarlet fever.');out.abx.push(g('radt')==='양성'?'RADT 양성 → GAS 10일 치료':'RADT 시행. 양성일 때만 항생제.');
+    if(g('radt')==='양성'){if(ctx.cfg&&ctx.cfg.amox)order(`amoxicillin 50 mg/kg/일 하루 1회 = ${W?R0(Math.min(W*50,1000))+' mg':'50 mg/kg'}, 10일`,'Amoxicillin 50 mg/kg qd x10d');else order(`cefadroxil 30 mg/kg/일 하루 1회 = ${W?R0(Math.min(W*30,1000))+' mg':'30 mg/kg'} (최대 1 g), 10일`,`Cefadroxil 30 mg/kg qd x10d`);}}
+  if(has('shape','작은 물집')&&(has('site','손발')||has('site','입안'))){out.dx.push('수족구병');out.A.push('HFMD.');}
+  if(has('mouth','목젖 주위 물집')){out.dx.push('헤르판지나');out.A.push('Herpangina.');}
+  if(has('mouth','잇몸 붓고 출혈')){out.dx.push('헤르페스 치은구내염');out.A.push('Herpetic gingivostomatitis.');order(`(증상 72시간 이내) acyclovir 1회 ${W?R0(Math.min(W*15,200))+' mg':'15 mg/kg'} 하루 5회 7일 [E]`,'Acyclovir 15 mg/kg 5x/day x7d');}
+  if((S.mouth||[]).filter(x=>x!=='없음').length||(has('shape','작은 물집')&&has('site','입안'))){
+    order('구내염: 시간 맞춘 진통제, 차갑고 부드러운 음식, 빨대 — 가장 큰 위험은 탈수','');
+    avoid('리도카인 점성액·벤조카인 겔 — 어린 아이 입안에 쓰지 않음');
+    out.fu.push('자다가 깜짝깜짝 놀람·비틀거림·반복 구토·처짐(엔테로바이러스 신경 합병증)이면 바로');
+  }
+  if(has('shape','수두형 물집(여러 단계)')){
+    out.dx.push('수두');out.A.push('Varicella.');
+    const need=ge(144)||/아토피|천식/.test(ctx.hx||'');
+    if(need)order(`(발진 24시간 이내) acyclovir 1회 ${W?R0(Math.min(W*20,800))+' mg':'20 mg/kg'} 하루 4회 5일 — 12세 이상·만성 피부/폐질환 [G]`,'Acyclovir 20 mg/kg qid x5d');
+    else out.abx.push('건강한 12세 미만 → 대증 (아시클로버는 12세 이상·만성 피부/폐질환·스테로이드 복용 시).');
+    avoid('아스피린 (수두)');out.abx.push('해열은 아세트아미노펜 우선 의견 [E].');
+  }
+  if(has('shape','움푹 파인 궤양 무리')){out.dx.push('포진상 습진');order(`acyclovir (예: 1회 ${W?R0(Math.min(W*20,800))+' mg':'20 mg/kg'}) + 치료 강도 상향 신호 — 스테로이드 잠시 중단`,'Acyclovir, escalate');}
+  // 농가진
+  if(has('shape','꿀색 딱지')){
+    out.dx.push('농가진');out.A.push('Impetigo.');
+    if(g('extent')==='넓음·다발')order(`경구 cefadroxil 30 mg/kg/일 = ${W?R0(Math.min(W*30,1000))+' mg':'30 mg/kg'} 하루 1회 7일 (또는 cephalexin 25–50 mg/kg/일 분4)`,'Cefadroxil 30 mg/kg/day x7d');
+    else order('무피로신 2% (또는 퓨시드산) 하루 2회 5일, 딱지 부드럽게 씻기','Mupirocin 2% bid x5d');
+  }
+  // 아토피
+  const atopic=g('atopy')==='아토피 병력'&&(has('site','접히는 곳')||has('site','얼굴')||has('site','몸통'))&&g('itch')&&g('itch')!=='없음'&&!has('shape','움푹 파인 궤양 무리')&&!has('shape','꿀색 딱지');
+  if(atopic){
+    out.dx.push('아토피피부염 악화');out.A.push('Atopic dermatitis flare.');
+    order('보습제 하루 2회 이상 넉넉히 (1주 200–250 g), 목욕 5–10분 후 3분 안에','Emollients bid+');
+    if(has('site','얼굴')||has('site','접히는 곳')||lt(12))order('얼굴·접히는 곳·영아: 약한 등급 스테로이드(hydrocortisone 1%, desonide) 하루 1–2회, 1–2주','Low-potency TCS to face/folds');
+    if(has('site','몸통'))order('몸통·팔다리: 중간 등급(prednicarbate, methylprednisolone aceponate 등) 하루 1–2회, 1–2주','Mid-potency TCS to trunk/limbs');
+    order('양: 1 FTU(손가락 한 마디, 0.5 g) = 손바닥 2개 넓이. 좋아지면 재발 부위 주 2회 유지','FTU dosing; proactive 2x/week');
+    if(g('itch')==='심함(밤에 깸)')out.abx.push('항히스타민은 가려움 근거 약함 — 잠 못 잘 때 짧게만 [G].');
+    avoid('얼굴·영아에 강한 등급 스테로이드');
+  }
+  // 기저귀
+  if(has('site','기저귀 부위')){
+    if(g('diaper')==='접히는 곳 포함+위성 반점'){out.dx.push('칸디다 기저귀 피부염');out.A.push('Candidal diaper dermatitis.');order('국소 항진균제(clotrimazole·miconazole·nystatin) 하루 2–3회 + 보호 크림, 아구창 확인','Topical antifungal + barrier');avoid('강한 스테로이드·스테로이드 복합제 (기저귀 부위)');}
+    else if(g('diaper')){out.dx.push('자극성 기저귀 피부염');out.A.push('Irritant diaper dermatitis.');order('자주 갈기, 공기 노출, 산화아연 보호 크림. 심하면 약한 스테로이드 짧게','Barrier cream, frequent changes');}
+    else out.warn.push('기저귀 부위: 접히는 곳을 비켜 가는지(자극성) 포함하는지(칸디다) 고르세요.');
+  }
+  if(fdN5(g)){out.warn.push('열 5일 이상 + 발진 → 가와사키병 확인 (“발열” 주호소의 가와사키 소견).');}
+  if(fev&&!anaph) antipy();
+  if(!out.dx.length){out.dx.push('발진 — 소견을 더 고르면 감별합니다');out.A.push('Rash, unspecified.');}
+  out.fu.push('점상출혈·처짐·숨참·입술/눈 붓기·물집이 급히 번지면 바로 내원');
+  out.F.push('Return if petechiae, lethargy, dyspnea, angioedema, or rapidly spreading lesions.');
+  const cur=[`Rash ${({'열 없음':'without fever','열과 함께':'with fever','열 내린 뒤':'after defervescence','5일+ 열과 함께':'with fever >=5 d'})[g('order')]||''}${sh.length?': '+sh.map(enx).join(', '):''}${site.length?' on '+site.map(enx).join(', '):''}.`];
+  if(g('move'))cur.push(g('move').startsWith('움직임')?'Migratory, each lesion <24 h.':'Fixed lesions.');
+  if(g('itch'))cur.push(`Pruritus ${({'없음':'-','있음':'+','심함(밤에 깸)':'++ (night waking)'})[g('itch')]}.`);
+  if(resp.length)cur.push('Systemic: '+resp.map(enx).join(', ')+'.');
+  if(g('joint')==='관절 통증·부종')cur.push('Arthralgia/joint swelling +.');
+  if((S.mouth||[]).filter(x=>x!=='없음').length)cur.push('Oral: '+S.mouth.filter(x=>x!=='없음').map(x=>({'목젖 주위 물집':'posterior pharyngeal vesicles','잇몸 붓고 출혈':'gingival swelling/bleeding','혀·볼 궤양':'tongue/buccal ulcers'})[x]).join(', ')+'.');
+  const prev=[];if(g('newdrug')&&g('newdrug')!=='없음')prev.push(`New drug ${g('newdrug')==='1–3일 전 시작'?'1-3 d':'1-3 wk'} ago${g('drugcls')?' ('+({'세파클러':'cefaclor','다른 항생제':'other antibiotic','기타 약':'other drug'})[g('drugcls')]+')':''}.`);
+  if(g('expo')==='음식·약 직후(2시간 내)')prev.push('Onset within 2 h of food/drug exposure.');
+  const etc=[];if(g('atopy')==='아토피 병력'&&!/아토피/.test(ctx.hx||''))etc.push('Hx atopic dermatitis.');
+  const ex={fever:fev,drowsy:resp.includes('처짐·실신')||(S.sev||[]).includes('처짐·기면'),V:resp.includes('반복 구토'),wheeze:resp.includes('쌕쌕·숨참'),
+    skin:`Skin: ${sh.map(enx).join(', ')||'rash'}${site.length?' ('+site.map(enx).join(', ')+')':''}`,throat:has('mouth','목젖 주위 물집')};
+  return {o:out,emr:{cur,prev,etc,ex}};
+  function fdN5(g){return g('order')==='5일+ 열과 함께';}
+}
+
+// ---------- 소변 ----------
+function utiEngine(S,ctx){
+  const b=_base(ctx);const {W,A,R0,out,order,avoid,lt,ge,antipy,sevAlert}=b;const has=(k,v)=>_has(S,k,v),g=k=>_g(S,k);
+  const fev=has('sx','열');const method=g('method');
+  const pos=g('le')==='양성'||g('micro')==='농뇨 있음';
+  const red=[];
+  if(lt(3)&&fev)red.push('생후 3개월 미만 발열 — 주사 치료 대상');
+  if(g('appear')==='아파 보임·못 먹음/토함')red.push('아파 보이거나 토해서 못 먹음 — 주사 치료');
+  if(g('abxday')&&g('abxday')!=='아직 안 씀'&&g('abxday')!=='1일'&&g('afeb')==='열 지속')red.push('항생제 48시간 이상에도 열 지속 — 내성균·농양·폐쇄 확인');
+  sevAlert(S.sev,red);
+  out.axes.push(['증상',(S.sx||[]).join(', ')||'미입력']);
+  out.axes.push(['채취',method||'미입력']);
+  out.axes.push(['소변검사',`LE ${g('le')||'?'} · 아질산 ${g('nit')||'?'} · 현미경 ${g('micro')||'?'}`]);
+  out.axes.push(['배양',g('culture')||'미입력']);
+  if(g('nit')==='음성'&&lt(24))out.warn.push('영아는 소변을 자주 봐서 아질산염 음성이 흔함 — 음성으로 배제하지 않음.');
+  const local=g('local')&&g('local')!=='해당 없음';
+  if(local){out.dx.push('요로감염 외 배뇨통 원인: '+g('local'));out.abx.push(({'여아 외음부 발적':'외음부질염 — 비누·거품 목욕 피하기, 면 속옷, 좌욕','남아 귀두포피 발적':'귀두포피염 — 위생, 필요 시 국소 치료','항문 가려움(요충)':'요충 — 구충제, 가족 동시 치료'})[g('local')]);}
+  if(!method&&(g('le')||g('nit'))) out.warn.push('채취 방법을 고르세요 — 백 소변은 확진에 쓸 수 없음.');
+  let treat=false;
+  if(method==='백(bag)'){
+    if(pos||g('nit')==='양성'){out.dx.push('백 소변 양성 — 요로감염 확진 불가');out.abx.push('도뇨 또는 중간뇨로 다시 채취해 소변검사 + 배양. 양성만으로 치료 시작하지 않음 [G] (아파 보이면 예외).');out.A.push('Positive bag UA - needs catheter/clean-catch confirmation.');}
+    else if(g('le')==='음성'&&g('nit')==='음성'){out.dx.push('백 소변 음성 — 요로감염 가능성 낮음');out.A.push('Negative bag UA.');}
+  } else if(method){
+    if(pos){treat=true;out.dx.push(fev?'열성 요로감염 (신우신염 가능)':'방광염');out.A.push(fev?'Febrile UTI.':'Cystitis.');}
+    else if(g('le')==='음성'&&g('micro')!=='농뇨 있음'&&g('nit')!=='양성'){out.dx.push('요로감염 가능성 낮음');out.A.push('UTI unlikely (negative UA).');}
+    else if(g('nit')==='양성'){treat=true;out.dx.push('요로감염 의심 (아질산 양성)');out.A.push('Probable UTI (nitrite +).');}
+  }
+  if(g('appear')==='아파 보임·못 먹음/토함'&&(pos||g('nit')==='양성'))treat=true;
+  if(treat){
+    if(g('culture')==='결과 전'||!g('culture'))out.abx.push('배양을 보내고 경험적 치료 시작 → 결과로 조정.');
+    const onAbx=g('abxday')&&g('abxday')!=='아직 안 씀';
+    if(!onAbx){
+      if(g('appear')==='아파 보임·못 먹음/토함'||(lt(3)&&fev)) out.abx.push('경구가 아니라 주사 치료 — 치료 강도 상향 신호.');
+      else{
+        order(`cefixime 8 mg/kg/일 = ${W?R0(Math.min(W*8,400))+' mg':'8 mg/kg'} 하루 1회 (최대 400 mg)`,`Cefixime 8 mg/kg/day qd${W?' ('+R0(Math.min(W*8,400))+' mg)':''}`);
+        order(`대안: cefdinir 14 mg/kg/일 (${W?R0(Math.min(W*14,600))+' mg/일':'—'}) 1–2회 / cefpodoxime 10 mg/kg/일 분2 (1회 ${W?R0(W*5)+' mg':'5 mg/kg'})`,'');
+        order(fev?'기간: 열성 요로감염 총 7–14일 (5일째 호전 중이면 단축 근거 [E])':'기간: 열 없는 방광염 3–5일 [E]',fev?'Duration 7-14 days':'Duration 3-5 days');
+      }
+    } else {
+      if(g('afeb')==='열 지속'&&g('abxday')!=='1일'){out.abx.push('48시간 이상 열 지속 → 배양 감수성 확인, 경구 유지가 아니라 주사 치료·영상(농양·폐쇄) 판단.');out.P.push('Escalate: culture-directed IV therapy, imaging.');}
+      else if(g('afeb')==='열 지속')out.abx.push('복용 1일째 — 48시간까지 지켜봄.');
+      if(g('afeb')==='해열됨'){
+        if(g('culture')==='ESBL·내성')out.abx.push('ESBL·내성이지만 해열·호전 중 → 임상 반응이 좋으면 유지하는 경우가 많음 [E]. 감수성 표 확인.');
+        else out.abx.push('호전 중 → 유지, 기간 채움. 배양 감수성으로 확인.');
+        out.P.push('Continue antibiotic per culture.');
+      }
+    }
+    if(fev&&ge(2)&&lt(24)&&g('prev')!=='재발')order('2–24개월 첫 열성 요로감염 → 신장·방광 초음파 [G]','Renal-bladder US');
+    if(g('prev')==='재발')order('재발 열성 요로감염 → 배뇨방광요도조영술(VCUG) 고려 [G]','Consider VCUG (recurrent febrile UTI)');
+    out.F.push('48 h: defervescence check; adjust by culture.');
+  }
+  if(g('constip')==='있음'||g('prev')==='재발')order('재발 예방: 변비 치료 + 2–3시간마다 배뇨, 물 충분히 (방광-장 기능 장애)','Treat constipation, timed voiding');
+  if(fev)antipy();
+  avoid('TMP-SMX 경험적 사용 — 국내 내성 26–78%');
+  avoid('백 소변 양성만으로 진단·치료');
+  avoid('배양 없이 항생제 시작');
+  if(!out.dx.length){out.dx.push('소변 증상 — 채취 방법과 결과를 고르면 판단합니다');out.A.push('Urinary symptoms.');}
+  out.fu.push('48시간에 열이 안 내리거나 토해서 약을 못 먹으면 바로 내원');
+  if(!out.F.length)out.F.push('Return if fever persists or unable to take orals.');
+  let s0=(S.sx||[]).filter(x=>x!=='없음(열만)').map(enx).join(', ')||'Fever only';const cur=[s0.charAt(0).toUpperCase()+s0.slice(1)+'.'];
+  if(g('prev'))cur.push(g('prev')==='재발'?'Recurrent UTI.':'First episode.');
+  if(g('constip')==='있음')cur.push('Constipation +.');
+  if(local)cur.push(({'여아 외음부 발적':'Vulvar erythema.','남아 귀두포피 발적':'Balanoposthitis.','항문 가려움(요충)':'Perianal itching.'})[g('local')]);
+  const prev=[];if(g('abxday')&&g('abxday')!=='아직 안 씀')prev.push(`Antibiotic day ${g('abxday').replace('일','')}, ${g('afeb')==='해열됨'?'afebrile':'still febrile'}.`);
+  const etc=[`UA (${({'백(bag)':'bag','도뇨':'catheter','중간뇨':'clean-catch'})[method]||'?'}): LE ${g('le')==='양성'?'+':g('le')?'-':'?'}, nitrite ${g('nit')==='양성'?'+':g('nit')?'-':'?'}, pyuria ${g('micro')==='농뇨 있음'?'+':g('micro')==='농뇨 없음'?'-':'NA'}. Culture: ${({'결과 전':'pending','음성':'negative','양성(감수성 확인 전)':'positive','ESBL·내성':'ESBL/resistant'})[g('culture')]||'not sent'}.`];
+  const ex={fever:fev,oral:g('appear')==='아파 보임·못 먹음/토함',cond:g('appear')==='아파 보임·못 먹음/토함',V:g('appear')==='아파 보임·못 먹음/토함'};
+  return {o:out,emr:{cur,prev,etc,ex}};
+}
+
+// ---------- 공통 EMR (원장님 서식) ----------
+function buildEMR2(e,ctx,o,S){
+  const pm=x=>x?'+':'-';const ex=e.ex||{};
+  const etc=[];if(ctx.wt)etc.push(`BW ${ctx.wt} kg.`);if(ctx.ageLabel)etc.push(`Age ${ctx.ageLabel.replace('세','y').replace('개월','mo').replace('신생아','newborn').replace('1~5','1-5').replace('6~11','6-11')}.`);
+  if(ctx.hx)etc.push('Hx: '+ctx.hx.split(', ').map(x=>(typeof EN!=='undefined'&&EN[x])||x).join(', ')+'.');
+  etc.push(...(e.etc||[]));
+  const sev=(S&&S.sev)||[];
+  const L=['[현 증상]',(e.cur||[]).filter(Boolean).join('\n')||'없음','','[이전 투약]',(e.prev||[]).join('\n')||'없음','','[기타]',etc.join(' ')||'없음','',
+  '[신체 진찰]',`Fever ${pm(ex.fever)}`,
+  `C/S/R -/-/-  sn/stuff -/-  N ${pm(ex.N)} / V ${pm(ex.V)} / D ${pm(ex.D)}`,
+  'Headache -  Dizziness -',
+  `oral/urination/condition ${ex.oral?'dec':'-'}/${ex.urin?'dec':'-'}/${ex.cond?'dec':'-'}`,
+  `Mental: ${ex.drowsy?'Drowsy':'Alert'}  Pupil: Equal & Reactive`,
+  `C-LN: ${ex.ln?'+':'-'}`,
+  ...(ex.skin?[ex.skin]:[]),
+  `abd pain: ${pm(ex.abd)}  rebound Td: ${pm(ex.reb)}`,
+  'NABS, RHB, s m, murmur-',
+  `breathing: ${ex.wheeze?'wheezing':(sev.includes('호흡곤란·함몰')?'retraction':'clear')}`,
+  `throat inj Rt ${pm(ex.throat)}/Lt ${pm(ex.throat)}  PTH Rt -/Lt -`,
+  'TM Rt: N  TM Lt: N','',
+  '[평가 및 계획]',`A> ${o.A.join(' ')||'-'}`,`P> ${o.P.filter(Boolean).join('\n   ')||'-'}`,`F/U> ${o.F.join(' ')||'-'}`];
+  return L.join('\n');
+}
+
+
+// ===== 무한 증례 생성기 (EMR 양식 v2) =====
+const RND={
+  r:(a,b)=>a+Math.floor(Math.random()*(b-a+1)),
+  f:(a,b)=>a+Math.random()*(b-a),
+  pick:a=>a[Math.floor(Math.random()*a.length)],
+  ch:p=>Math.random()<p,
+  some:(a,min,max)=>{const n=RND.r(min,Math.min(max,a.length));return [...a].sort(()=>Math.random()-.5).slice(0,n);}
+};
+const WT=[[0,3.3],[1,4.4],[3,6.0],[6,7.7],[9,8.8],[12,9.6],[18,10.9],[24,12.2],[36,14.3],[48,16.3],[60,18.4],[72,20.7],[84,23.1],[96,25.9],[108,29.0],[120,32.5],[144,41],[180,55]];
+function medWt(m){for(let i=1;i<WT.length;i++){if(m<=WT[i][0]){const [a,wa]=WT[i-1],[b,wb]=WT[i];return wa+(wb-wa)*(m-a)/(b-a);}}return 55;}
+function mkPt(mA,mB,opt={}){
+  const m=RND.f(mA,mB);const sex=opt.sex||RND.pick(['남','여']);
+  let wt=Math.round(medWt(m)*RND.f(0.88,1.12)*2)/2;if(wt<2.8)wt=2.8;
+  const ageLabel=m<1?'신생아':m<6?'1~5개월':m<12?'6~11개월':`${Math.min(15,Math.floor(m/12))}세`;
+  const disp=m<1?`생후 ${Math.max(3,Math.round(m*30))}일`:m<24?`${Math.floor(m)}개월`:`${Math.floor(m/12)}세${Math.floor(m%12)?' '+Math.floor(m%12)+'개월':''}`;
+  return {ageM:m,ageLabel,disp,sex,wt,hx:(opt.hx||[]).join(', '),cfg:{}};
+}
+const P=RND.pick,C=RND.ch,R=RND.r;
+const dayOf=(a,b)=>{const d=R(a,b);return d>=10?'D10+':'D'+d;};
+const FEV=['37.5–38.4','38.5–38.9','39 이상'];
+// ---------- 유형 ----------
+const ARCH=[
+// 감기·호흡기
+{id:'viral',mode:'resp',t:'초기 바이러스 감기',ref:'1권 5장',pt:'D1–3은 “마르게 하는” 시기. 점액용해제·항생제는 필요 없고, 2세 미만이면 감기약 자체를 최소화한다.',
+ g:()=>{const p=mkPt(8,96);const fe=C(.6);return [p,{visit:'초진',day:dayOf(1,3),course:P(['그대로','좋아지는 중']),fever:fe?P(FEV.slice(0,2)):'없음',fdays:fe?P(['1일','2일']):'',antiint:'',rhin:'맑음',rhinx:C(.4)?['양 많음']:[],nose:RND.some(['코막힘','재채기'],1,2),muc:P(['선홍·부종','안 봄']),cough:C(.5)?'마른':'없음',ctime:[],cdur:'2주 미만',throat:C(.5)?'발적':'정상',radt:'',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',comp:'',sev:[]}];}},
+{id:'allergic',mode:'resp',t:'알레르기 비염 양상',ref:'1권 6장',pt:'창백·물컹한 하비갑개 + 가려움·연속 재채기 = 알레르기. 2세대 항히스타민 + 비강 스테로이드가 중심이고, 몬테루카스트는 신경정신 경고를 고지한다.',
+ g:()=>{const p=mkPt(30,130,{hx:C(.6)?['비염 가족력']:['알레르기비염']});return [p,{visit:'초진',day:dayOf(2,5),course:'그대로',fever:'없음',rhin:'맑음',rhinx:C(.5)?['양 많음']:[],nose:['재채기','가려움·코 비빔',...(C(.5)?['코막힘']:[])],muc:'창백·물컹',cough:C(.4)?'마른':'없음',ctime:C(.5)?['눕자마자']:[],cdur:'2주 미만',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'pnd',mode:'resp',t:'후비루형 기침 (D4–8)',ref:'1권 5·7·8장',pt:'D4 이후 끈적해지면 항히스타민을 끄고 점액용해제·식염수로. 후비루형 기침에 진해제·류코트리엔은 듣지 않는다. 콧물 색은 세균의 증거가 아니다.',
+ g:()=>{const p=mkPt(30,110);return [p,{visit:P(['초진','재진']),day:dayOf(4,8),course:P(['그대로','좋아지는 중']),fever:'없음',rhin:'노랑·초록',rhinx:['끈적함','후비루'],nose:['코막힘'],muc:'선홍·부종',cough:'젖은',ctime:RND.some(['눕자마자','아침 가래'],1,2),cdur:'2주 미만',throat:C(.4)?'발적':'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'sinus10',mode:'resp',t:'지속형 세균성 부비동염',ref:'1권 11·12장',pt:'10일 이상 호전 없음 → 부비동염 기준. 1차는 amox/clav 14:1 고용량(체중×0.375 mL). 항생제보다 배액(식염수+INCS)을 먼저 확인하고, 알레르기 바탕이 있으면 2세대 항히스타민은 유지한다.',
+ g:()=>{const al=C(.3);const p=mkPt(24,130,{hx:al?['알레르기비염']:[]});return [p,{visit:'재진',day:'D10+',course:'그대로',fever:'없음',rhin:P(['노랑·초록','흰 점액']),rhinx:['끈적함',...(C(.5)?['후비루']:[])],nose:['코막힘'],muc:P(['선홍·부종','중비도 고름',...(al?['창백·물컹']:[])]),cough:'젖은',ctime:['아침 가래'],cdur:'2주 미만',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'double',mode:'resp',t:'이중 악화',ref:'1권 5·11장',pt:'좋아지던 감기가 D5 이후 다시 열·콧물로 나빠지면 세균 합병증(부비동염) 기준. 병일만 짧다고 지켜보지 않는다.',
+ g:()=>{const p=mkPt(24,110);return [p,{visit:'재진',day:dayOf(6,8),course:'좋아지다 다시 나빠짐',fever:P(FEV.slice(1)),fdays:'1일',rhin:'노랑·초록',rhinx:['끈적함'],nose:['코막힘'],muc:'선홍·부종',cough:'젖은',ctime:['아침 가래'],cdur:'2주 미만',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'aomY',mode:'resp',t:'영아 급성 중이염',ref:'1권 11·12장',pt:'핵심은 고막 팽륜. 6–23개월 양측 또는 중증은 항생제. amoxicillin 단독이 없어 14:1로 시작하면 2차 단계를 미리 쓰는 셈. 2세 미만은 10일.',
+ g:()=>{const p=mkPt(6,23);const bi=C(.6);const cj=C(.25);return [p,{visit:'초진',day:dayOf(2,5),course:'그대로',fever:P(FEV.slice(1)),fdays:P(['1일','2일']),rhin:P(['맑음','노랑·초록']),nose:['코막힘'],muc:'선홍·부종',cough:C(.5)?'젖은':'없음',ctime:[],throat:'정상',ln:'없음',tmr:'팽륜',tml:bi?'팽륜':P(['정상','발적만']),conj:cj?'화농성 결막염':'없음',lung:['clear'],abx:'없음',flags:C(.2)?['최근 30일 내 항생제']:[],sev:[]}];}},
+{id:'aomO',mode:'resp',t:'2세 이상 편측 비중증 중이염',ref:'1권 11장',pt:'24개월 이상 편측 비중증은 관찰도 선택지. 진통제를 주고 48–72시간 안전망(재진 약속 또는 미리 처방)을 함께 정한다.',
+ g:()=>{const p=mkPt(26,96);return [p,{visit:'초진',day:dayOf(2,4),course:'그대로',fever:P(['없음','37.5–38.4','38.5–38.9']),fdays:'1일',rhin:'맑음',nose:['코막힘'],muc:'선홍·부종',cough:'없음',throat:'정상',ln:'없음',tmr:P(['팽륜','정상']),tml:'',conj:'없음',lung:['clear'],abx:'없음',sev:[]}].map((x,i)=>{if(i===1){if(x.tmr==='팽륜')x.tml='정상';else x.tml='팽륜';}return x;});}},
+{id:'aomFail',mode:'resp',t:'중이염 항생제 무반응',ref:'1권 13장',pt:'48–72시간 무반응이면 가짜 실패 4종(순응도·용량·진단·합병증)부터. 모두 아니면 고용량 amox/clav을 이긴 균은 PRSP 가능성 → ceftriaxone이 없으니 clindamycin + 3세대 경구. 클라불란산 증량·3세대 단독은 무의미.',
+ g:()=>{const p=mkPt(8,48);return [p,{visit:'재진',day:dayOf(4,6),course:'그대로',fever:'39 이상',fdays:'4일+',antiint:'변화 없음',rhin:'맑음',muc:'선홍·부종',cough:'없음',throat:'정상',ln:'없음',tmr:'팽륜',tml:P(['팽륜','정상']),conj:'없음',lung:['clear'],abx:'amox/clav',abxday:'3',resp:'그대로',comp:'양호',sev:[]}];}},
+{id:'partial',mode:'resp',t:'부분반응',ref:'1권 13장',pt:'열은 내렸고 콧물·기침만 남았다면 정상 경과. 콧물·기침은 판정에 쓰지 않는다 — 유지하고 기간만 채운다.',
+ g:()=>{const p=mkPt(12,96);return [p,{visit:'재진',day:dayOf(6,9),course:'좋아지는 중',fever:'없음',antiint:'간격 벌어짐',rhin:'노랑·초록',rhinx:['끈적함'],muc:'선홍·부종',cough:'젖은',ctime:['아침 가래'],throat:'정상',ln:'없음',tmr:P(['팽륜','정상']),tml:'정상',conj:'없음',lung:['clear'],abx:'amox/clav',abxday:P(['4','5']),resp:'열은 내림·콧물기침 남음',comp:'양호',sev:[]}];}},
+{id:'relapse',mode:'resp',t:'좋아지다 다시 열 (재악화)',ref:'1권 13장',pt:'재악화는 저항보다 새 바이러스·합병증·임의 중단이 더 흔하다. 재진찰이 먼저이고, 3세대로 반사적으로 점프하지 않는다.',
+ g:()=>{const p=mkPt(12,72);return [p,{visit:'재진',day:dayOf(7,9),course:'좋아지다 다시 나빠짐',fever:P(FEV.slice(1)),fdays:'1일',antiint:'간격 짧아짐',rhin:'맑음',muc:'선홍·부종',cough:'마른',throat:'발적',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'amox/clav',abxday:P(['6','7+']),resp:'좋아지다 다시 열',comp:'양호',sev:[]}];}},
+{id:'comp',mode:'resp',t:'순응도 문제 (가짜 실패)',ref:'1권 13·14장',pt:'설사로 끊었거나 쓴맛으로 뱉었다면 단계 상향이 아니라 같은 단계에서 수평 변경. 14:1 제형·식사와 함께·정장제, 또는 맛이 다른 같은 단계 약.',
+ g:()=>{const p=mkPt(10,60);return [p,{visit:'재진',day:dayOf(4,6),course:'그대로',fever:'38.5–38.9',fdays:'3일',antiint:'변화 없음',rhin:'맑음',muc:'선홍·부종',cough:'없음',throat:'정상',ln:'없음',tmr:'팽륜',tml:'정상',conj:'없음',lung:['clear'],abx:'amox/clav',abxday:'3',resp:'그대로',comp:P(['설사로 중단','토함·뱉음','빠뜨림']),sev:[]}];}},
+{id:'lowdose',mode:'resp',t:'표준 용량 amoxicillin 실패',ref:'1권 10·13장',pt:'45 mg/kg/일로 쓰고 “실패”라 부르는 경우가 흔하다. 가짜 실패 ② 용량 부족 → 고용량(90)으로 먼저.',
+ g:()=>{const p=mkPt(12,60);return [p,{visit:'재진',day:dayOf(4,6),course:'그대로',fever:'38.5–38.9',fdays:'3일',antiint:'변화 없음',rhin:'맑음',muc:'선홍·부종',cough:'없음',throat:'정상',ln:'없음',tmr:'팽륜',tml:'정상',conj:'없음',lung:['clear'],abx:'amox(표준)',abxday:'3',resp:'그대로',comp:'양호',sev:[]}];}},
+{id:'gas',mode:'resp',t:'A군 연쇄상구균 인두염',ref:'1권 11·12장',pt:'기침·콧물 없는 갑작스런 인후통 + 삼출물 + 앞목 림프절 → 검사 양성일 때만 치료. amoxicillin 미보유라 cefadroxil 30 mg/kg 1일 1회, 10일 완주(류마티스열 예방).',
+ g:()=>{const p=mkPt(48,144);return [p,{visit:'초진',day:dayOf(1,2),course:'그대로',fever:'39 이상',fdays:'1일',rhin:'없음',muc:'정상',cough:'없음',throat:'삼출물',radt:P(['양성','양성','안 함']),ln:'앞목 압통',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'myco',mode:'resp',t:'마이코플라스마 의심',ref:'1권 11·12장',pt:'5세 이상, 서서히, 심한 마른 기침, 상태 대비 청진 소견, β-lactam 무반응 → 세포벽이 없어 β-lactam은 원천 무효. 마크로라이드로 “축 전환”, 48–72시간 무반응이면 내성(국내 81%) 간주.',
+ g:()=>{const p=mkPt(60,150);const onBL=C(.4);return [p,{visit:onBL?'재진':'초진',day:dayOf(5,9),course:'그대로',fever:P(FEV.slice(1)),fdays:'4일+',antiint:'변화 없음',rhin:'없음',muc:'정상',cough:'마른',ctime:['새벽'],cdur:'2주 미만',throat:'발적',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:C(.7)?['국소 수포음']:['clear'],abx:onBL?'amox/clav':'없음',abxday:onBL?'3':'',resp:onBL?'그대로':'',comp:onBL?'양호':'',sev:[]}];}},
+{id:'croup',mode:'resp',t:'크룹',ref:'1권 7장',pt:'개 짖는 기침 + 쉰 목소리 = 크룹. 치료는 진해제가 아니라 스테로이드 1회. dexamethasone이 없으면 prednisolone 1 mg/kg(피알디 0.1%는 체중 kg = mL).',
+ g:()=>{const p=mkPt(8,60);return [p,{visit:'초진',day:dayOf(1,2),course:'그대로',fever:P(['없음','37.5–38.4']),rhin:'맑음',muc:'선홍·부종',cough:'개 짖는 소리',ctime:['새벽'],cdur:'2주 미만',throat:'발적',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'pbb',mode:'resp',t:'PBB (4주 넘는 젖은 기침)',ref:'1권 7·12장',pt:'4주 이상 젖은 기침, 상태 양호, 다른 원인 없음 → PBB. 진해거담제 돌려막기 대신 amox/clav 2주.',
+ g:()=>{const p=mkPt(24,96);return [p,{visit:'재진',day:'D10+',course:'그대로',fever:'없음',rhin:'없음',muc:'정상',cough:'젖은',ctime:['아침 가래'],cdur:'4주 이상',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'hyper',mode:'resp',t:'기도과민형 기침',ref:'1권 7장',pt:'감기 후 3주, 새벽 3–5시·운동 시 마른 기침 = 기도. 몬테루카스트 또는 툴로부테롤 패취. 점액용해제는 역할 없음.',
+ g:()=>{const p=mkPt(36,130,{hx:C(.3)?['천식']:[]});return [p,{visit:'재진',day:'D10+',course:'그대로',fever:'없음',rhin:'없음',muc:'정상',cough:'마른',ctime:RND.some(['새벽','운동·웃음 시'],1,2),cdur:'2–4주',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'ome',mode:'resp',t:'삼출성 중이염',ref:'1권 6장',pt:'팽륜·통증·열 없이 고막 뒤 물만 = OME. 항히스타민·코막힘약·항생제·스테로이드를 쓰지 않고 3개월 관찰.',
+ g:()=>{const p=mkPt(18,72);return [p,{visit:'재진',day:dayOf(8,9),course:'좋아지는 중',fever:'없음',rhin:'맑음',muc:'선홍·부종',cough:'없음',throat:'정상',ln:'없음',tmr:'삼출액',tml:P(['삼출액','정상']),conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'pert',mode:'resp',t:'백일해 의심',ref:'1권 7장',pt:'몰아치는 발작성 기침 + 기침 끝 구토·흡기음 → 검사와 함께 azithromycin. 영아는 중증 위험.',
+ g:()=>{const p=mkPt(4,120);return [p,{visit:'재진',day:'D10+',course:'그대로',fever:'없음',rhin:'맑음',muc:'정상',cough:'발작성',ctime:['새벽'],cdur:'2–4주',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],abx:'없음',sev:[]}];}},
+{id:'mastoid',mode:'resp',t:'중이염 + 귀 뒤 부종',ref:'1권 3·13장',pt:'귀 뒤 압통·부종, 귓바퀴 돌출은 유양돌기염 신호 — 약 교체가 아니라 치료 강도 상향.',
+ g:()=>{const p=mkPt(12,72);return [p,{visit:'재진',day:dayOf(5,8),course:'좋아지다 다시 나빠짐',fever:'39 이상',fdays:'2일',rhin:'맑음',muc:'선홍·부종',cough:'없음',throat:'정상',ln:'없음',tmr:'팽륜',tml:'정상',conj:'없음',lung:['clear'],abx:P(['amox/clav','없음']),abxday:'5',resp:'그대로',comp:'양호',sev:['귀 뒤 부종']}];}},
+// 구토·설사
+{id:'ageNo',mode:'gi',t:'장염 — 탈수 없음',ref:'2권 4장',pt:'탈수 점수 0 → 평소대로 먹이고 손실만큼 ORS(설사 1회 10 mL/kg, 구토 1회 2 mL/kg). 포타겔·지사제는 넣지 않는다.',
+ g:()=>{const p=mkPt(8,96);return [p,{vomit:P(['없음','1–2회']),diarr:P(['1–3회','4–6회']),dur:P(['오늘','1–2일']),color:['물설사'],fever:P(['없음','37.5–38.4']),pain:P(['없음','간헐적']),abdtd:'없음',look:'정상',eyes:'정상',muc:'촉촉',tears:'있음',lastvoid:'6시간 이내',ors:P(['안 해봄','먹고 유지됨']),contact:C(.5)?['어린이집 유행']:[],flags:[],sev:[],_day:R(1,2)}];}},
+{id:'ageMod',mode:'gi',t:'장염 — 경도~중등도 탈수',ref:'2권 4장',pt:'탈수 점수 1–4 → ORS 50–100 mL/kg를 3–4시간, 5 mL씩 1–2분마다. ORS를 토하면 6개월 이상은 ondansetron 1회. racecadotril은 ORS와 함께.',
+ g:()=>{const p=mkPt(7,72);const sc=()=>P([0,1,1,1]);const L=['정상','보챔·목말라함'],E=['정상','약간 꺼짐'],M=['촉촉','끈적'],T=['있음','줄었음'];let s={look:L[sc()],eyes:E[sc()],muc:M[sc()],tears:T[sc()]};if(s.look==='정상'&&s.eyes==='정상'&&s.muc==='촉촉'&&s.tears==='있음')s.muc='끈적';
+  return [p,{vomit:P(['3–5회','6회+','1–2회']),diarr:P(['4–6회','7회+']),dur:'1–2일',color:['물설사'],fever:P(['없음','37.5–38.4','38.5–38.9']),pain:P(['없음','간헐적']),abdtd:'없음',...s,lastvoid:P(['6시간 이내','6–8시간']),ors:P(['먹으면 토함','안 해봄','먹고 유지됨']),contact:C(.6)?['어린이집 유행']:[],flags:[],sev:[],_day:R(1,3)}];}},
+{id:'ageSev',mode:'gi',t:'장염 — 중증 탈수',ref:'2권 4장',pt:'탈수 점수 5–8, 8시간 이상 소변 없음 → 경구 보충이 아니라 수액 = 치료 강도 상향.',
+ g:()=>{const p=mkPt(6,48);return [p,{vomit:'6회+',diarr:'7회+',dur:'1–2일',color:['물설사'],fever:P(['37.5–38.4','38.5–38.9']),pain:'간헐적',abdtd:'없음',look:P(['보챔·목말라함','처짐·축 늘어짐']),eyes:'많이 꺼짐',muc:'마름',tears:'없음',lastvoid:P(['8–12시간','12시간+']),ors:'먹으면 토함',contact:[],flags:[],sev:[],_day:2}];}},
+{id:'bloody',mode:'gi',t:'혈변 장염',ref:'2권 4장',pt:'혈변 + 고열이면 대변 배양 후 표적 치료. 장출혈성 대장균 의심 시 항생제는 용혈요독증후군 위험으로 쓰지 않는다.',
+ g:()=>{const p=mkPt(18,144);return [p,{vomit:'1–2회',diarr:P(['4–6회','7회+']),dur:P(['1–2일','3–6일']),color:['혈변','점액변'],fever:P(['38.5–38.9','39 이상']),pain:'간헐적',abdtd:'압통',look:'보챔·목말라함',eyes:'정상',muc:'끈적',tears:'있음',lastvoid:'6시간 이내',ors:'먹고 유지됨',contact:C(.5)?['최근 여행·날음식']:['가족 같은 증상'],flags:[],sev:[],_day:R(2,4)}];}},
+{id:'bilious',mode:'gi',t:'초록색 구토',ref:'2권 5장',pt:'담즙성 구토는 장회전이상·중장염전을 배제할 때까지 응급. 장염으로 단정하지 않는다.',
+ g:()=>{const p=mkPt(0.3,6);return [p,{vomit:P(['3–5회','6회+']),diarr:'없음',dur:'오늘',color:['초록색 구토'],fever:'없음',pain:'심함·지속',abdtd:'없음',look:P(['보챔·목말라함','처짐·축 늘어짐']),eyes:'정상',muc:'촉촉',tears:'있음',lastvoid:'6–8시간',ors:'안 해봄',contact:[],flags:C(.5)?['복부 팽만']:[],sev:[],_day:1}];}},
+{id:'intuss',mode:'gi',t:'장중첩증 의심',ref:'2권 5·7장',pt:'6개월–3세, 몇 분 간격 자지러지는 울음 + 사이사이 처짐 + 혈변(늦게) → 초음파. 장염으로 보지 않는다.',
+ g:()=>{const p=mkPt(6,36);return [p,{vomit:'3–5회',diarr:P(['없음','1–3회']),dur:'오늘',color:C(.6)?['혈변']:[],fever:'없음',pain:'간헐적',abdtd:'압통',look:'처짐·축 늘어짐',eyes:'정상',muc:'촉촉',tears:'있음',lastvoid:'6–8시간',ors:'안 해봄',contact:[],flags:[],sev:[],_day:1}];}},
+{id:'dka',mode:'gi',t:'구토 + 다음다뇨',ref:'2권 4·5장',pt:'구토·복통 + 많이 마시고 많이 봄 + 처짐 → 당뇨병성 케톤산증. 혈당·소변 케톤부터.',
+ g:()=>{const p=mkPt(48,156);return [p,{vomit:'3–5회',diarr:'없음',dur:'1–2일',color:[],fever:'없음',pain:'간헐적',abdtd:'압통',look:'처짐·축 늘어짐',eyes:'약간 꺼짐',muc:'마름',tears:'줄었음',lastvoid:'6시간 이내',ors:'먹으면 토함',contact:[],flags:['다음·다뇨'],sev:[],_day:2}];}},
+// 발열
+{id:'neo',mode:'fever',t:'생후 28일 이하 발열',ref:'2권 1장',pt:'신생아의 모든 열은 치료 강도 상향 신호. 겉모습으로 판단하지 않는다.',
+ g:()=>{const p=mkPt(0.1,0.95);return [p,{young:'28일 이하',fdays:'1일',tmax:'38.0–38.9',after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:['없음'],vacc:'완료',seizure:'없음',flu:'해당 없음',kawa:[],sev:[],_day:1}];}},
+{id:'yinf',mode:'fever',t:'29일–3개월 발열',ref:'2권 1장',pt:'3개월 미만은 상태가 좋아도 소변·혈액(염증 수치) 평가가 필요하다. 해열제만 주고 귀가시키지 않는다.',
+ g:()=>{const p=mkPt(1.05,2.95);return [p,{young:'29일–3개월',fdays:'1일',tmax:'38.0–38.9',after:'해열 후 잘 놂',intake:P(['평소대로','절반 정도']),urine:'정상',source:C(.6)?['없음']:['콧물·기침'],vacc:'완료',seizure:'없음',flu:'해당 없음',kawa:[],sev:[],_day:1}];}},
+{id:'fws',mode:'fever',t:'원인 불명 열 (3–36개월)',ref:'2권 1·14장',pt:'원인 부위가 없으면 숨은 세균 감염 중 요로감염이 가장 흔하다. 여아·39℃ 이상·열 2일 이상이면 소변 검사. 백 소변 양성은 확진이 아니다.',
+ g:()=>{const p=mkPt(4,34,{sex:C(.65)?'여':'남'});return [p,{young:p.ageM<6?'3–6개월':'',fdays:P(['2일','3일']),tmax:P(['39.0–39.9','40 이상']),after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:['없음'],ua:P(['안 함','안 함','농뇨(+)','음성']),vacc:'완료',seizure:'없음',flu:'해당 없음',kawa:[],sev:[],_day:R(2,3)}];}},
+{id:'kd',mode:'fever',t:'5일 이상 열 — 가와사키',ref:'2권 1장',pt:'열 5일 + 눈(눈곱 없음)·입·발진·손발·목 림프절 중 4개 이상 → 가와사키. 10일 안 면역글로불린이 필요하므로 치료 강도 상향. BCG 부위 발적도 단서.',
+ g:()=>{const p=mkPt(6,60);return [p,{young:'',fdays:'5일+',tmax:'39.0–39.9',after:P(['해열 후 잘 놂','해열 후에도 처짐']),intake:'절반 정도',urine:'정상',source:['없음'],ua:'음성',vacc:'완료',seizure:'없음',flu:'해당 없음',kawa:RND.some(['양쪽 눈 충혈','입술·혀 변화','발진','손발 부종·발적','목 림프절 1.5cm+','BCG 부위 발적'],4,5),sev:[],_day:5}];}},
+{id:'kdInc',mode:'fever',t:'불완전 가와사키 가능성',ref:'2권 1장',pt:'영아는 소견이 4개가 안 되어도(불완전 가와사키) 5일 이상 열이면 의심. 염증 수치·심초음파 판단.',
+ g:()=>{const p=mkPt(4,14);return [p,{young:p.ageM<6?'3–6개월':'',fdays:'5일+',tmax:'39.0–39.9',after:'해열 후 잘 놂',intake:'절반 정도',urine:'정상',source:['없음'],ua:'음성',vacc:'완료',seizure:'없음',flu:'해당 없음',kawa:RND.some(['양쪽 눈 충혈','입술·혀 변화','발진','BCG 부위 발적'],2,3),sev:[],_day:5}];}},
+{id:'fs',mode:'fever',t:'단순 열성경련',ref:'2권 1장',pt:'전신·15분 미만·24시간 1회 = 단순. 뇌파·영상·혈액검사를 일상적으로 하지 않고 교육. 해열제는 재발을 막지 못한다.',
+ g:()=>{const p=mkPt(8,54);return [p,{young:'',fdays:'1일',tmax:'39.0–39.9',after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:[P(['콧물·기침','목(인두)'])],vacc:'완료',seizure:'단순 열성경련',flu:'해당 없음',kawa:[],sev:[],_day:1}];}},
+{id:'cfs',mode:'fever',t:'복합 열성경련',ref:'2권 1장',pt:'한쪽·15분 이상·24시간 2회 이상이면 복합 → 치료 강도 상향.',
+ g:()=>{const p=mkPt(8,54);return [p,{young:'',fdays:'1일',tmax:'39.0–39.9',after:P(['해열 후 잘 놂','해열 후에도 처짐']),intake:'평소대로',urine:'정상',source:['목(인두)'],vacc:'완료',seizure:'복합 열성경련',flu:'해당 없음',kawa:[],sev:[],_day:1}];}},
+{id:'fluHR',mode:'fever',t:'인플루엔자 — 고위험',ref:'2권 2장',pt:'5세 미만·천식 등 고위험은 시간과 관계없이 항바이러스제. 오셀타미비르 체중별 30/45/60/75 mg 하루 2회 5일, 또는 발록사비르 1회(1세 이상, 48시간 이내). 2일간 혼자 두지 않기.',
+ g:()=>{const as=C(.4);const p=as?mkPt(60,144,{hx:['천식']}):mkPt(12,58);return [p,{young:'',fdays:P(['1일','2일','3일']),tmax:P(['39.0–39.9','40 이상']),after:'해열 후 잘 놂',intake:'절반 정도',urine:'정상',source:['콧물·기침'],vacc:'미완료',seizure:'없음',flu:P(['독감 양성','임상적 의심']),onset:P(['48시간 이내','48시간 초과']),chronic:[],kawa:[],sev:[],_day:R(1,3)}];}},
+{id:'fluLate',mode:'fever',t:'인플루엔자 — 건강한 학동기, 48시간 경과',ref:'2권 2장',pt:'건강한 아이가 48시간이 지났으면 항바이러스제 이득이 적다. 대증 치료, 해열제 없이 24시간 열 없으면 등교.',
+ g:()=>{const p=mkPt(72,150);return [p,{young:'',fdays:'3일',tmax:'39.0–39.9',after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:['콧물·기침'],vacc:'완료',seizure:'없음',flu:'독감 양성',onset:'48시간 초과',chronic:[],kawa:[],sev:[],_day:3}];}},
+// 발진
+{id:'urt',mode:'rash',t:'급성 두드러기 (바이러스)',ref:'2권 10장',pt:'아이 두드러기의 가장 흔한 원인은 바이러스. 각 병변이 24시간 안에 움직이면 두드러기. 2세대 항히스타민이 1차, 1세대는 피한다.',
+ g:()=>{const p=mkPt(14,120);return [p,{order:P(['열과 함께','열 없음']),shape:['두드러기(부풀어 오름)'],move:'움직임(24시간 내 사라짐)',site:RND.some(['얼굴','몸통','손발'],1,3),itch:'있음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:R(1,2)}];}},
+{id:'sslr',mode:'rash',t:'혈청병 유사 반응',ref:'2권 10장',pt:'항생제(특히 세파클러) 1–3주 후 두드러기 + 관절 통증·부종 + 열. 원인 약 중단·기록, 이후 피한다.',
+ g:()=>{const p=mkPt(14,72);return [p,{order:'열과 함께',shape:['두드러기(부풀어 오름)'],move:'움직임(24시간 내 사라짐)',site:['몸통','손발'],itch:'있음',newdrug:'1–3주 전 시작',drugcls:P(['세파클러','세파클러','다른 항생제']),expo:'없음',joint:'관절 통증·부종',atopy:'아님',resp:['없음'],sev:[],_day:2}];}},
+{id:'anaph',mode:'rash',t:'아나필락시스',ref:'2권 10장',pt:'피부 + 호흡(또는 순환·심한 위장) 증상 = 아나필락시스. 에피네프린 0.01 mL/kg(1 mg/mL) 허벅지 근육이 가장 먼저. 항히스타민·스테로이드는 보조.',
+ g:()=>{const p=mkPt(18,144);return [p,{order:'열 없음',shape:['두드러기(부풀어 오름)'],move:'움직임(24시간 내 사라짐)',site:['얼굴','몸통'],itch:'있음',newdrug:'없음',expo:'음식·약 직후(2시간 내)',joint:'없음',atopy:'아님',resp:RND.some(['쌕쌕·숨참','목소리 변화','반복 구토'],1,2),sev:[],_day:1}];}},
+{id:'roseola',mode:'rash',t:'돌발진',ref:'2권 3장',pt:'3–5일 고열 후 열이 내리면서 몸통 발진 = 돌발진 (6개월–2세). 대증.',
+ g:()=>{const p=mkPt(6,24);return [p,{order:'열 내린 뒤',shape:['반점·구진'],move:'고정(며칠 그대로)',site:['몸통'],itch:'없음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:4}];}},
+{id:'scarlet',mode:'rash',t:'성홍열',ref:'2권 3장 · 1권 12장',pt:'열·인후통 + 사포처럼 까슬한 발진 + 딸기 혀 → RADT 양성이면 GAS 10일 치료.',
+ g:()=>{const p=mkPt(36,120);return [p,{order:'열과 함께',shape:['사포처럼 까슬'],move:'고정(며칠 그대로)',site:['몸통','접히는 곳'],itch:'없음',radt:'양성',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:2}];}},
+{id:'hfmd',mode:'rash',t:'수족구병',ref:'2권 3장',pt:'가장 큰 위험은 못 먹어서 오는 탈수. 진통제·차가운 음식. 어린 아이 입안에 리도카인 점성액 금지. 깜짝깜짝 놀람·비틀거림·반복 구토는 신경 합병증 신호.',
+ g:()=>{const p=mkPt(10,60);return [p,{order:'열과 함께',shape:['작은 물집'],move:'고정(며칠 그대로)',site:['손발','입안'],itch:'없음',mouth:['혀·볼 궤양'],newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:2}];}},
+{id:'herpangina',mode:'rash',t:'헤르판지나',ref:'2권 3장',pt:'목젖·입천장 뒤쪽 물집 + 갑작스런 고열. 대증·수분.',
+ g:()=>{const p=mkPt(10,60);return [p,{order:'열과 함께',shape:['작은 물집'],move:'고정(며칠 그대로)',site:['입안'],itch:'없음',mouth:['목젖 주위 물집'],newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:1}];}},
+{id:'hsv',mode:'rash',t:'헤르페스 치은구내염',ref:'2권 3장',pt:'잇몸이 붓고 피가 나며 입 앞쪽 궤양. 72시간 이내라면 아시클로버 15 mg/kg 하루 5회 7일 고려 [E].',
+ g:()=>{const p=mkPt(10,48);return [p,{order:'열과 함께',shape:['작은 물집'],move:'고정(며칠 그대로)',site:['입안'],itch:'없음',mouth:['잇몸 붓고 출혈'],newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:2}];}},
+{id:'vzv',mode:'rash',t:'수두',ref:'2권 3장',pt:'건강한 12세 미만은 대증. 12세 이상·만성 피부/폐질환·스테로이드 복용이면 24시간 이내 아시클로버. 아스피린 금지.',
+ g:()=>{const hi=C(.45);const p=hi?(C(.5)?mkPt(144,175):mkPt(24,100,{hx:['아토피피부염']})):mkPt(14,110);return [p,{order:'열과 함께',shape:['수두형 물집(여러 단계)'],move:'고정(며칠 그대로)',site:['얼굴','몸통','두피'],itch:'있음',newdrug:'없음',expo:'없음',joint:'없음',atopy:p.hx.includes('아토피')?'아토피 병력':'아님',resp:['없음'],sev:[],_day:1}];}},
+{id:'impetigo',mode:'rash',t:'농가진',ref:'2권 11장',pt:'꿀색 딱지. 국한이면 무피로신 하루 2회 5일, 넓거나 다발이면 경구 cefadroxil 30 mg/kg/일 7일.',
+ g:()=>{const p=mkPt(14,96);return [p,{order:'열 없음',shape:['꿀색 딱지'],move:'고정(며칠 그대로)',site:RND.some(['얼굴','손발','몸통'],1,2),itch:'있음',extent:P(['국한(몇 개)','넓음·다발']),newdrug:'없음',expo:'없음',joint:'없음',atopy:C(.3)?'아토피 병력':'아님',resp:['없음'],sev:[],_day:3}];}},
+{id:'ad',mode:'rash',t:'아토피피부염 악화',ref:'2권 9장',pt:'보습이 치료(하루 2회, 1주 200–250 g). 얼굴·접히는 곳은 약한 등급, 몸통은 중간 등급. 양은 FTU, 좋아지면 주 2회 유지. 항히스타민은 가려움 근거가 약하다.',
+ g:()=>{const p=mkPt(4,72,{hx:['아토피피부염']});return [p,{order:'열 없음',shape:['반점·구진'],move:'고정(며칠 그대로)',site:RND.some(['얼굴','접히는 곳','몸통'],1,3),itch:P(['있음','심함(밤에 깸)']),newdrug:'없음',expo:'없음',joint:'없음',atopy:'아토피 병력',resp:['없음'],sev:[],_day:5}];}},
+{id:'eh',mode:'rash',t:'포진상 습진',ref:'2권 9장',pt:'아토피 피부에 움푹 파인 작은 궤양이 무리 지어 번지고 열 → 헤르페스. 아시클로버 + 치료 강도 상향, 스테로이드는 잠시 멈춤.',
+ g:()=>{const p=mkPt(6,60,{hx:['아토피피부염']});return [p,{order:'열과 함께',shape:['움푹 파인 궤양 무리'],move:'고정(며칠 그대로)',site:['얼굴','접히는 곳'],itch:'있음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아토피 병력',resp:['없음'],sev:[],_day:2}];}},
+{id:'diaper',mode:'rash',t:'기저귀 피부염',ref:'2권 11장',pt:'접히는 곳을 비켜 가면 자극성(보호 크림), 접히는 곳까지 선홍색 + 위성 반점이면 칸디다(국소 항진균제). 강한 스테로이드·복합제는 피한다.',
+ g:()=>{const p=mkPt(2,20);return [p,{order:'열 없음',shape:['반점·구진'],move:'고정(며칠 그대로)',site:['기저귀 부위'],itch:'없음',diaper:P(['접히는 곳 비켜감','접히는 곳 포함+위성 반점']),newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],sev:[],_day:4}];}},
+{id:'pete',mode:'rash',t:'열 + 점상출혈',ref:'2권 3장',pt:'열 + 눌러도 사라지지 않는 점상출혈 + 처짐 → 패혈증(수막구균 등) 가능. 즉시 치료 강도 상향.',
+ g:()=>{const p=mkPt(6,96);return [p,{order:'열과 함께',shape:['점상출혈(눌러도 안 사라짐)'],move:'고정(며칠 그대로)',site:['손발','몸통'],itch:'없음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:C(.5)?['처짐·실신']:['없음'],sev:C(.6)?['처짐·기면']:[],_day:1}];}},
+// 소변
+{id:'bag',mode:'uti',t:'백 소변 양성',ref:'2권 14장',pt:'백 소변 양성은 피부 균 오염이 많아 확진이 아니다. 도뇨·중간뇨로 다시 받아 배양 후 치료.',
+ g:()=>{const p=mkPt(3,24,{sex:C(.7)?'여':'남'});return [p,{sx:['열'],appear:'좋아 보임',local:'해당 없음',method:'백(bag)',le:'양성',nit:P(['음성','양성']),micro:'안 함',culture:'',abxday:'아직 안 씀',prev:'처음',constip:'없음',sev:[],_day:R(2,3)}];}},
+{id:'futi',mode:'uti',t:'열성 요로감염',ref:'2권 14장',pt:'도뇨 농뇨 + 배양 → 경구 cefixime 8 mg/kg/일 1일 1회, 배양으로 조정. 영아 아질산 음성은 흔하다. 2–24개월 첫 열성 요로감염은 신장 초음파.',
+ g:()=>{const p=mkPt(3,30,{sex:C(.7)?'여':'남'});return [p,{sx:['열'],appear:'좋아 보임',local:'해당 없음',method:P(['도뇨','도뇨','중간뇨']),le:'양성',nit:P(['음성','음성','양성']),micro:'농뇨 있음',culture:'결과 전',abxday:'아직 안 씀',prev:P(['처음','처음','재발']),constip:C(.3)?'있음':'없음',sev:[],_day:R(2,3)}];}},
+{id:'cyst',mode:'uti',t:'방광염 (큰 아이)',ref:'2권 14장',pt:'열 없는 배뇨통·빈뇨 + 중간뇨 양성 → 방광염, 3–5일 [E]. 변비와 배뇨 습관이 재발의 핵심.',
+ g:()=>{const p=mkPt(60,156,{sex:'여'});return [p,{sx:RND.some(['배뇨통','빈뇨·급박뇨','새로 생긴 야뇨·지림'],1,3),appear:'좋아 보임',local:'해당 없음',method:'중간뇨',le:'양성',nit:P(['양성','음성']),micro:'농뇨 있음',culture:'결과 전',abxday:'아직 안 씀',prev:P(['처음','재발']),constip:C(.6)?'있음':'없음',sev:[],_day:R(1,3)}];}},
+{id:'utiFail',mode:'uti',t:'요로감염 48시간 무반응',ref:'2권 14장',pt:'48시간이 지나도 열이 안 내리면 배양 감수성 확인 + 주사 치료·영상(농양·폐쇄) 판단 = 치료 강도 상향.',
+ g:()=>{const p=mkPt(4,36);return [p,{sx:['열'],appear:'좋아 보임',local:'해당 없음',method:'도뇨',le:'양성',nit:'음성',micro:'농뇨 있음',culture:P(['ESBL·내성','양성(감수성 확인 전)']),abxday:P(['2일','3일+']),afeb:'열 지속',prev:'처음',constip:'없음',sev:[],_day:4}];}},
+{id:'esbl',mode:'uti',t:'ESBL이지만 호전 중',ref:'2권 14장',pt:'국내 소아 요로감염 ESBL 20% 이상. 시험관 내성이어도 해열·호전 중이면 유지하는 경우가 많다 [E]. 감수성 표 확인.',
+ g:()=>{const p=mkPt(4,36);return [p,{sx:['열'],appear:'좋아 보임',local:'해당 없음',method:'도뇨',le:'양성',nit:'음성',micro:'농뇨 있음',culture:'ESBL·내성',abxday:'3일+',afeb:'해열됨',prev:'처음',constip:'없음',sev:[],_day:4}];}},
+{id:'utiIll',mode:'uti',t:'아파 보이는 요로감염',ref:'2권 14장',pt:'아파 보이거나 토해서 먹지 못하면 경구가 아니라 주사 치료.',
+ g:()=>{const p=mkPt(3,24);return [p,{sx:['열'],appear:'아파 보임·못 먹음/토함',local:'해당 없음',method:'도뇨',le:'양성',nit:'양성',micro:'농뇨 있음',culture:'결과 전',abxday:'아직 안 씀',prev:'처음',constip:'없음',sev:[],_day:2}];}},
+{id:'vulvo',mode:'uti',t:'외음부질염 (요로감염 아님)',ref:'2권 14장',pt:'배뇨통이 있어도 소변이 깨끗하면 외음부질염·귀두포피염·요충을 본다. 비누·거품 목욕 피하기, 면 속옷.',
+ g:()=>{const p=mkPt(30,96,{sex:'여'});return [p,{sx:['배뇨통'],appear:'좋아 보임',local:'여아 외음부 발적',method:'중간뇨',le:'음성',nit:'음성',micro:'농뇨 없음',culture:'',abxday:'아직 안 씀',prev:'처음',constip:C(.4)?'있음':'없음',sev:[],_day:R(2,5)}];}}
+];
+
+// ---------- EMR 양식 v2 렌더 ----------
+const HXC={'알레르기비염':'AR','아토피피부염':'AD','천식':'BA','비염 가족력':'FHx-AR','반복 중이염':'rOM'};
+function renderV2(mode,S,c){
+  const g=k=>S[k]||'',has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v,pm=b=>b?'+':'-';
+  const cur=[],prev=[],etc=[];
+  const pe={fever:false,C:false,Sp:false,R:false,sn:false,st:false,N:false,V:false,D:false,oral:false,urin:false,cond:false,drowsy:false,ln:false,nose:'IT n  bog-  MM-',abd:false,reb:false,br:'clear',ti:false,tx:'',tmr:'N',tml:'N',skin:''};
+  const fevCode=(f,d)=>f&&f!=='없음'?`F${d?d.replace('일','').replace('+','+')+'d':''} ${f.replace('39 이상','39+').replace('–','-')}`.trim():'F-';
+  const crs={'좋아지는 중':'I','그대로':'S','좋아지다 다시 나빠짐':'R'};
+  if(mode==='resp'){
+    const day=g('day').replace('D','');
+    const ap={'간격 벌어짐':'AP q4>q8','간격 짧아짐':'AP q8>q4','변화 없음':'AP q6'}[g('antiint')]||'AP-';
+    cur.push(`D${day} ${crs[g('course')]||'S'}  ${fevCode(g('fever'),g('fdays'))}  ${ap}`);
+    const rc={'맑음':'c','흰 점액':'m','노랑·초록':'y'}[g('rhin')];
+    const rx=(S.rhinx||[]).map(x=>({'끈적함':'s','후비루':'pnd','한쪽만 악취':'uni','양 많음':'++'})[x]).filter(Boolean);
+    const cc={'마른':'d','젖은':'w','개 짖는 소리':'b','발작성':'p'}[g('cough')];
+    const ct=(S.ctime||[]).map(x=>({'눕자마자':'L','새벽':'N','아침 가래':'A','식후':'M','운동·웃음 시':'X'})[x]);
+    const cd={'2–4주':' 3wk','4주 이상':' 5wk'}[g('cdur')]||'';
+    cur.push(`R${rc?' '+[rc,...rx].join(' '):'-'}  C${cc?' '+cc+(ct.length?' @'+ct.join(','):'')+cd:'-'}`);
+    if(has('conj','화농성 결막염'))cur.push('conj+ (purulent)');
+    const ab={'amox(표준)':'AMX','amox 고용량':'AMXh','amox/clav':'AC14','2세대 세팔로':'CEF2','3세대 세팔로':'CFD','마크로라이드':'AZ'}[g('abx')];
+    const rr={'좋아짐':'I','열은 내림·콧물기침 남음':'P','그대로':'N','좋아지다 다시 열':'R'}[g('resp')];
+    const cx={'양호':'ok','빠뜨림':'miss','토함·뱉음':'vom','설사로 중단':'dia'}[g('comp')]||'ok';
+    prev.push(ab?`Abx ${ab} D${g('abxday')}${rr?' r:'+rr:''}  cx ${cx}`:`Abx-${has('flags','최근 30일 내 항생제')?' (30d+)':''}  cx ok`);
+    if(g('radt')&&g('radt')!=='안 함')etc.push(`RADT ${g('radt')==='양성'?'+':'-'}`);
+    pe.fever=nz2(g('fever'));pe.C=!!cc;pe.Sp=cc==='w'||ct.includes('A');pe.R=!!rc;pe.sn=has('nose','재채기');pe.st=has('nose','코막힘');
+    pe.nose=({'정상':'IT n  bog-  MM-','창백·물컹':'IT p  bog+  MM-','선홍·부종':'IT r  bog-  MM-','중비도 고름':'IT r  bog-  MM+','비후(색 정상)':'IT h  bog-  MM-'})[g('muc')]||'IT n  bog-  MM-';
+    const tm={'정상':'N','발적만':'E','팽륜':'B','삼출액':'OME'};pe.tmr=tm[g('tmr')]||'N';pe.tml=tm[g('tml')]||'N';
+    pe.ti=g('throat')==='발적'||g('throat')==='삼출물';pe.tx=g('throat')==='삼출물'?' (ex)':'';pe.ln=g('ln')==='앞목 압통';
+    const lu=(S.lung||[]).filter(x=>x!=='clear').map(x=>({'천명':'wh','국소 수포음':'cr','흉곽 함몰':'ret'})[x]);if(lu.length)pe.br=lu.join(', ');
+  } else if(mode==='gi'){
+    cur.push(`D${S._day||1} S  ${fevCode(g('fever'))}  AP-`);cur.push('R-  C-');
+    const n=v=>({'없음':'0','1–2회':'2','3–5회':'4','6회+':'6+','1–3회':'3','4–6회':'6','7회+':'8+'})[v]||'?';
+    cur.push(`GI: V${n(g('vomit'))} / D${n(g('diarr'))}  bile${pm(has('color','초록색 구토'))} blood${pm(has('color','혈변'))}  UO${({'6시간 이내':'<6','6–8시간':'6-8','8–12시간':'8-12','12시간+':'12+'})[g('lastvoid')]}h  ORS ${({'안 해봄':'-','먹고 유지됨':'ok','먹으면 토함':'vom'})[g('ors')]}`);
+    const ix=(k,a)=>Math.max(0,a.indexOf(g(k)));const a=ix('look',['정상','보챔·목말라함','처짐·축 늘어짐']),e=ix('eyes',['정상','약간 꺼짐','많이 꺼짐']),m=ix('muc',['촉촉','끈적','마름']),t=ix('tears',['있음','줄었음','없음']);
+    cur.push(`CDS a${a} e${e} m${m} t${t} =${a+e+m+t}`);
+    if(g('pain')&&g('pain')!=='없음')cur.push(`abd pain ${g('pain')==='간헐적'?'intermittent':'severe'}`);
+    if(has('flags','다음·다뇨'))cur.push('PU/PD+');if(has('flags','복부 팽만'))cur.push('distension+');
+    prev.push('Abx-  cx ok');
+    (S.contact||[]).forEach(x=>etc.push(({'어린이집 유행':'daycare GE+','가족 같은 증상':'family sx+','최근 여행·날음식':'travel/raw food+'})[x]));
+    pe.fever=nz2(g('fever'));pe.N=pe.V=nz2(g('vomit'));pe.D=nz2(g('diarr'));pe.oral=m>0;pe.urin=g('lastvoid')&&g('lastvoid')!=='6시간 이내';pe.cond=a>0;pe.drowsy=a===2;
+    pe.abd=nz2(g('pain'));pe.reb=g('abdtd')==='반발통';
+  } else if(mode==='fever'){
+    const fd=g('fdays').replace('일','');
+    cur.push(`D${fd.replace('+','')} S  F${fd}d  AP-`);cur.push(`R${has('source','콧물·기침')?' c':'-'}  C${has('source','콧물·기침')?' d':'-'}`);
+    const src=(S.source||[]).filter(x=>x!=='없음').map(x=>({'콧물·기침':'URI','목(인두)':'pharynx','귀':'ear','폐':'lung','소변 증상':'urinary','설사·구토':'GI','발진':'rash'})[x]);
+    cur.push(`FWS: Tmax${({'38.0–38.9':'38.x','39.0–39.9':'39.x','40 이상':'40+'})[g('tmax')]}  post-AP ${g('after')==='해열 후에도 처짐'?'lethargic':'play'}  PO ${({'평소대로':'nl','절반 정도':'1/2','절반 미만':'<1/2'})[g('intake')]||'nl'}  UO ${g('urine')==='줄었음'?'dec':'nl'}  src${src.length?' '+src.join(','):'-'}  vacc ${g('vacc')==='미완료'?'inc':'ok'}  Sz${({'단순 열성경련':' s','복합 열성경련':' c'})[g('seizure')]||'-'}`);
+    if(g('young'))cur.push(`age ${({'28일 이하':'<=28d','29일–3개월':'29d-3mo','3–6개월':'3-6mo'})[g('young')]}`);
+    if((S.kawa||[]).length||fd==='5+'){const K={'양쪽 눈 충혈':'conj','입술·혀 변화':'oral','발진':'rash','손발 부종·발적':'ext','목 림프절 1.5cm+':'LN','BCG 부위 발적':'BCG'};const ks=Object.entries(K).map(([k,v])=>v+pm(has('kawa',k)));const n=(S.kawa||[]).filter(x=>x!=='BCG 부위 발적').length;cur.push(`KD: ${ks.join(' ')}  =${n}/5`);}
+    if(nz2(g('flu'))&&g('flu')!=='해당 없음')cur.push(`Flu: RAT${g('flu')==='독감 양성'?'+':' n/a (clinical)'}  ${g('onset')==='48시간 초과'?'>48h':'<48h'}  HR${pm(c.ageM<60||/천식/.test(c.hx))}`);
+    prev.push('Abx-  cx ok');
+    if(g('ua')&&g('ua')!=='안 함')etc.push(`UA: ${g('ua')==='음성'?'neg':'pyuria+'}`);
+    pe.fever=true;pe.oral=g('intake')==='절반 미만';pe.urin=g('urine')==='줄었음';pe.cond=pe.drowsy=g('after')==='해열 후에도 처짐';pe.ln=has('kawa','목 림프절 1.5cm+');
+    if(has('source','목(인두)'))pe.ti=true;if(has('source','콧물·기침')){pe.C=pe.R=true;}
+  } else if(mode==='rash'){
+    const fev=g('order')&&g('order')!=='열 없음';
+    cur.push(`D${S._day||1} S  ${fev?'F'+(g('order')==='5일+ 열과 함께'?'5+d':'+'):(g('order')==='열 내린 뒤'?'F-(~D3)':'F-')}  AP-`);cur.push('R-  C-');
+    const sh=(S.shape||[]).map(x=>({'두드러기(부풀어 오름)':'whl','과녁 모양':'tgt','반점·구진':'mp','작은 물집':'ves','수두형 물집(여러 단계)':'vz','꿀색 딱지':'crust','사포처럼 까슬':'sp','점상출혈(눌러도 안 사라짐)':'pete','움푹 파인 궤양 무리':'pit'})[x]);
+    const st=(S.site||[]).map(x=>({'얼굴':'face','몸통':'trunk','접히는 곳':'flex','손발':'hand/foot','입안':'oral','기저귀 부위':'diaper','두피':'scalp'})[x]);
+    const sys=(S.resp||[]).filter(x=>x!=='없음').map(x=>({'쌕쌕·숨참':'wh','목소리 변화':'voice','반복 구토':'vom','처짐·실신':'col'})[x]);
+    const dr=g('newdrug')&&g('newdrug')!=='없음'?`drug ${({'세파클러':'CFC','다른 항생제':'abx','기타 약':'other'})[g('drugcls')]||'+'} ${g('newdrug')==='1–3일 전 시작'?'2d':'2wk'}`:'drug-';
+    cur.push(`Skin: ${sh.join(',')} @${st.join(',')}  ${g('move').startsWith('움직임')?'mig':'fix'}  itch${({'없음':'-','있음':'+','심함(밤에 깸)':'++'})[g('itch')]||'-'}  ${dr}  joint${pm(g('joint')==='관절 통증·부종')}  sys${sys.length?' '+sys.join(','):'-'}`);
+    const mo=(S.mouth||[]).filter(x=>x!=='없음').map(x=>({'목젖 주위 물집':'post. pharynx ves','잇몸 붓고 출혈':'gingival swelling/bleeding','혀·볼 궤양':'tongue/buccal ulcer'})[x]);if(mo.length)cur.push('oral: '+mo.join(', '));
+    if(g('extent'))cur.push(g('extent')==='넓음·다발'?'extent: wide/multiple':'extent: localized');
+    if(g('diaper'))cur.push(g('diaper')==='접히는 곳 포함+위성 반점'?'diaper: folds involved + satellites':'diaper: spares folds');
+    if(g('expo')==='음식·약 직후(2시간 내)')cur.push('onset <2h after food/drug');
+    prev.push('Abx-  cx ok');if(g('radt')&&g('radt')!=='안 함')etc.push(`RADT ${g('radt')==='양성'?'+':'-'}`);
+    pe.fever=fev;pe.drowsy=sys.includes('col')||has('sev','처짐·기면');pe.V=sys.includes('vom');if(sys.includes('wh'))pe.br='wh';pe.ti=has('mouth','목젖 주위 물집')||has('shape','사포처럼 까슬');
+    pe.skin=`Skin: ${sh.join(',')} (${st.join(',')})`;
+  } else if(mode==='uti'){
+    const fev=has('sx','열');cur.push(`D${S._day||2} S  ${fev?'F'+(S._day||2)+'d':'F-'}  AP-`);cur.push('R-  C-');
+    const sx=(S.sx||[]).filter(x=>x!=='열').map(x=>({'배뇨통':'dysuria','빈뇨·급박뇨':'freq/urg','새로 생긴 야뇨·지림':'new enuresis','옆구리 통증':'flank pain','혈뇨':'hematuria'})[x]);
+    if(sx.length)cur.push('U/sx: '+sx.join(', '));
+    if(g('appear')==='아파 보임·못 먹음/토함')cur.push('ill-appearing, PO intolerance');
+    if(g('local')&&g('local')!=='해당 없음')cur.push(({'여아 외음부 발적':'vulvar erythema+','남아 귀두포피 발적':'balanoposthitis+','항문 가려움(요충)':'perianal itch+'})[g('local')]);
+    const ad=g('abxday');prev.push(ad&&ad!=='아직 안 씀'?`Abx CFX D${ad.replace('일','').replace('+','+')}  ${g('afeb')==='해열됨'?'afebrile':'F persists'}  cx ok`:'Abx-  cx ok');
+    etc.push(`UA(${({'백(bag)':'bag','도뇨':'cath','중간뇨':'cc'})[g('method')]}): LE${pm(g('le')==='양성')} Nit${pm(g('nit')==='양성')} WBC${g('micro')==='농뇨 있음'?'+':g('micro')==='농뇨 없음'?'-':'?'}  Cx${({'결과 전':' pend','음성':' neg','양성(감수성 확인 전)':' pos','ESBL·내성':' ESBL'})[g('culture')]||'-'}  prevUTI${pm(g('prev')==='재발')}  constip${pm(g('constip')==='있음')}`);
+    pe.fever=fev&&!(g('afeb')==='해열됨');pe.oral=pe.cond=pe.V=g('appear')==='아파 보임·못 먹음/토함';
+  }
+  const sev=(S.sev||[]);if(sev.length)cur.push('! '+sev.map(x=>({'귀 뒤 부종':'postauricular swelling','처짐·기면':'lethargy','호흡곤란·함몰':'resp distress','탈수':'dehydration'})[x]||x).join(', '));
+  const hx=c.hx?c.hx.split(', ').map(x=>HXC[x]||x).join(','):'-';
+  const L=['[현 증상]',...cur,'','[이전 투약]',...prev,'','[기타]',`BW ${c.wt}kg  Hx ${hx}${etc.length?'  '+etc.join('  '):''}`,'',
+  '[신체 진찰]',`Fever ${pm(pe.fever)}`,`C/S/R ${pm(pe.C)}/${pm(pe.Sp)}/${pm(pe.R)}  sn/stuff ${pm(pe.sn)}/${pm(pe.st)}  N ${pm(pe.N)} / V ${pm(pe.V)} / D ${pm(pe.D)}`,
+  'Headache -  Dizziness -',`oral/urination/condition ${pe.oral?'dec':'-'}/${pe.urin?'dec':'-'}/${pe.cond?'dec':'-'}`,`Mental: ${pe.drowsy?'Drowsy':'Alert'}  Pupil: Equal & Reactive`,`C-LN: ${pm(pe.ln)}`,
+  `Nose: ${pe.nose}`,...(pe.skin?[pe.skin]:[]),`abd pain: ${pm(pe.abd)}  rebound Td: ${pm(pe.reb)}`,'NABS, RHB, s m, murmur-',`breathing: ${pe.br}`,
+  `throat inj Rt ${pm(pe.ti)}/Lt ${pm(pe.ti)}${pe.tx}  PTH Rt -/Lt -`,`TM Rt ${pe.tmr}  Lt ${pe.tml}`];
+  return L.join('\n');
+}
+function nz2(v){return !!v&&v!=='없음';}
+function solve(mode,S,c){
+  if(mode==='resp')return rxEngine(S,c);
+  if(mode==='gi')return giEngine(S,c).o;
+  if(mode==='fever')return feverEngine(S,c).o;
+  if(mode==='rash')return rashEngine(S,c).o;
+  return utiEngine(S,c).o;
+}
+function genCase(filter,weights){
+  let pool=ARCH.filter(a=>filter==='all'||a.mode===filter);
+  const ws=pool.map(a=>(weights&&weights[a.id])||1);let t=ws.reduce((x,y)=>x+y,0)*Math.random();
+  let arch=pool[pool.length-1];for(let i=0;i<pool.length;i++){t-=ws[i];if(t<=0){arch=pool[i];break;}}
+  return genFrom(arch);
+}
+function genFrom(arch){const [c,S]=arch.g();const chart=renderV2(arch.mode,S,c);const o=solve(arch.mode,S,c);return {arch,c,S,chart,o};}
+
+
+
+const $=id=>document.getElementById(id);
+const MODEL={all:'전체',resp:'감기·호흡기',gi:'구토·설사',fever:'발열',rash:'발진',uti:'소변'};
+let filter='all',cur=null,n=0,revealed=false,graded=false;
+let stats={};try{stats=JSON.parse(localStorage.getItem('rxdrill_stats')||'{}')}catch(e){stats={}}
+try{filter=localStorage.getItem('rxdrill_filter')||'all';if(!MODEL[filter])filter='all';$('weak').checked=localStorage.getItem('rxdrill_weak')==='1'}catch(e){}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function save(){try{localStorage.setItem('rxdrill_stats',JSON.stringify(stats))}catch(e){}}
+function toast(m){const t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.opacity=0,1500)}
+function buildFilters(){const b=$('filters');b.innerHTML='';Object.entries(MODEL).forEach(([k,v])=>{const c=document.createElement('button');c.className='chip';c.textContent=v;c.setAttribute('aria-pressed',k===filter);c.onclick=()=>{filter=k;try{localStorage.setItem('rxdrill_filter',k)}catch(e){}buildFilters();next();};b.appendChild(c);});}
+function weights(){if(!$('weak').checked)return null;const w={};ARCH.forEach(a=>{const s=stats[a.id];w[a.id]=s?1+3*((s.miss+0.5*s.part)/Math.max(1,s.n)):1.5;});return w;}
+function show(c){cur=c;n++;revealed=false;graded=false;
+  $('cno').textContent='증례 '+String(n).padStart(3,'0');
+  $('cpt').textContent=`${c.c.disp} ${c.c.sex}아 · ${c.c.wt} kg`;
+  $('cmode').textContent=MODEL[c.arch.mode];
+  $('chart').textContent=c.chart;$('mine').value='';$('reveal').disabled=false;
+  $('ans').innerHTML=`<div class="ph"><b style="color:var(--ink)">먼저 스스로 처방해 보세요</b><ol><li>중증 소견이 있나? (차트의 ! 줄, Mental, breathing, UO)</li><li>병일·경과 → 마르게 할 시기인가, 묽게 할 시기인가</li><li>점막(Nose)·기침(C @)·콧물(R)로 축 나누기</li><li>항생제가 필요한가 — 필요하면 무엇을, 체중으로 몇 mL</li><li>넣지 말아야 할 약은?</li></ol></div>`;
+  window.scrollTo({top:0,behavior:'smooth'});}
+function next(){show(genCase(filter,weights()))}
+function li(a,cls){return a&&a.length?`<ul class="${cls||''}">${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<ul><li style="color:var(--muted)">—</li></ul>'}
+function reveal(){if(!cur||revealed)return;revealed=true;$('reveal').disabled=true;const o=cur.o,a=cur.arch;
+  $('ans').innerHTML=`<div class="meta"><span class="pt">${esc(a.t)}</span><span class="tag">${esc(a.ref)}</span></div>`+
+  o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+
+  o.warn.filter(x=>!/체중이 없어|나이가 없어/.test(x)).map(x=>`<div class="warn">${esc(x)}</div>`).join('')+
+  `<div class="sec"><h3>진단 후보</h3>${li(o.dx)}</div>`+
+  `<div class="sec"><h3>판단 요약</h3><div class="tbl" style="overflow-x:auto"><table class="ax" style="min-width:0">${o.axes.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table></div></div>`+
+  `<div class="sec"><h3>판단</h3>${li(o.abx)}</div>`+
+  `<div class="sec"><h3>처방안</h3>${li(o.orders.filter(Boolean),'rx')}</div>`+
+  `<div class="sec"><h3>넣지 말 것</h3>${li(o.avoid,'no-list')}</div>`+
+  ((o.fu&&o.fu.length&&!/^[A-Z]/.test(o.fu[0]))?`<div class="sec"><h3>보호자 안내 · 재평가</h3>${li(o.fu)}</div>`:'')+
+  `<div class="point"><b>핵심</b> ${esc(a.pt)}</div>`+
+  `<div class="grade"><span class="hint" style="color:var(--ink);font-weight:700">내 답은?</span><button class="btn" data-g="ok">맞힘</button><button class="btn" data-g="part">일부</button><button class="btn" data-g="miss">틀림</button></div>`;
+  $('ans').querySelectorAll('.grade .btn').forEach(b=>b.onclick=()=>grade(b.dataset.g));}
+function grade(g){if(!cur||graded)return;graded=true;const id=cur.arch.id;const s=stats[id]||(stats[id]={n:0,ok:0,part:0,miss:0});s.n++;s[g]++;save();renderStats();toast({ok:'맞힘 기록',part:'일부 기록',miss:'틀림 기록 — 이 유형이 더 자주 나옵니다'}[g]);setTimeout(next,g==='miss'?900:500);}
+function renderStats(){let tn=0,tok=0;ARCH.forEach(a=>{const s=stats[a.id];if(s){tn+=s.n;tok+=s.ok+0.5*s.part;}});
+  $('tally').textContent=tn?`푼 증례 ${tn} · 정답률 ${Math.round(100*tok/tn)}%`:'아직 기록 없음';
+  const rows=ARCH.map(a=>({a,s:stats[a.id]})).filter(x=>x.s).sort((x,y)=>(y.s.miss+0.5*y.s.part)/y.s.n-(x.s.miss+0.5*x.s.part)/x.s.n);
+  $('stats').innerHTML=rows.length?`<table><thead><tr><th>유형</th><th>주호소</th><th>푼 수</th><th>맞힘</th><th>일부</th><th>틀림</th><th>참고</th></tr></thead><tbody>${rows.map(({a,s})=>`<tr><td>${esc(a.t)}</td><td>${MODEL[a.mode]}</td><td>${s.n}</td><td>${s.ok}</td><td>${s.part}</td><td class="${s.miss?'miss':''}">${s.miss}</td><td>${esc(a.ref)}</td></tr>`).join('')}</tbody></table>`:`<p class="hint">정답을 확인한 뒤 맞힘·일부·틀림을 누르면 유형별로 쌓입니다. 전체 ${ARCH.length}개 유형이 있고, 나이·체중·소견은 매번 달라집니다.</p>`;}
+$('reveal').onclick=reveal;$('next').onclick=next;$('same').onclick=()=>{if(cur)show(genFrom(cur.arch))};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(cur.chart);toast('차트 복사됨')}catch(e){const r=document.createRange();r.selectNodeContents($('chart'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('선택됨 — 복사하세요')}};
+$('weak').onchange=()=>{try{localStorage.setItem('rxdrill_weak',$('weak').checked?'1':'0')}catch(e){}};
+let armed=false;$('reset').onclick=()=>{if(!armed){armed=true;$('resetMsg').textContent='한 번 더 누르면 지워집니다';setTimeout(()=>{armed=false;$('resetMsg').textContent=''},3000);return;}stats={};save();renderStats();armed=false;$('resetMsg').textContent='지웠습니다';};
+document.addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;if(e.key==='Enter'){e.preventDefault();reveal();}else if(e.key==='n'||e.key==='N'){next();}});
+buildFilters();renderStats();next();
+
+</script>
+
+</body>
+</html>

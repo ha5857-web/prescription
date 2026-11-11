@@ -1180,8 +1180,13 @@ function render(){
   $('alts').innerHTML=altList.length?`<span class="hint">대안·선택:</span>`+altList.map(id=>{const bl=(ADm[id].calc(c)||{}).block;return `<button class="chip${bl?' blocked':''}" data-addid="${id}"${bl?` title="${esc(bl)}"`:''}>+ ${esc(ADm[id].chip)}</button>`}).join(''):'';
   $('advice').innerHTML=o.adv.length?`<h3>생활·처치 안내</h3><ul>${o.adv.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
   const chart=assembleA(run.R.map(r=>partsA(r.m,st.SM[r.m],c,r.o)),c,st.sex==='남'?st.flags.filter(f=>f!=='임신'):st.flags)+'\n\n[평가 및 계획]\nA> '+(o.A.join('; ')||'-')+'\nP> '+(pl.join('\n   ')||'-')+'\nF/U> '+(o.F.join(' / ')||'-');
-  LAST={emr:chart,orders:lines.join('\n')};
-  $('emr').textContent=chart;$('ordtxt').textContent=LAST.orders||'—';
+  const pTxt=(pl.join('\n   ')||'-'),pSeg='\nP> '+pTxt+'\nF/U> ';
+  LAST={emr:st.showRx?chart:chart.replace(pSeg,'\nP> \nF/U> '),full:chart,orders:lines.join('\n'),p:'P> '+pTxt};
+  $('emr').textContent=st.showRx?chart:chart.replace(pSeg,'\nP> \nF/U> ');$('ordtxt').textContent=LAST.orders||'—';
+  $('res').classList.toggle('rxhide',!st.showRx);
+  $('rxToggle').textContent=st.showRx?'▾ 처방':'▸ 처방';$('rxToggle').setAttribute('aria-expanded',st.showRx);
+  $('rxPop').textContent=rxWin?'작은 창 닫기':'⧉ 작은 창';
+  renderRxWin();
   $('dx').innerHTML=o.dx.map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="mu">—</li>';
   $('axes').innerHTML=o.axes.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
   $('judge').innerHTML=o.judge.map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="mu">—</li>';
@@ -1215,7 +1220,7 @@ function buildStatic(){
   $('gdiff').innerHTML=GOJ_INTRO.diff.map(([a,b])=>`<li><b>${esc(a)}</b> — ${esc(b)}</li>`).join('');
   $('gnote').textContent=GOJ_INTRO.note;
   $('s_amox').addEventListener('change',e=>{st.cfg.amox=e.target.checked;saveCfg();render();});}
-document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const q=b.dataset,Sx=S();let chg=true;
+const onClick=e=>{const b=e.target.closest('button');if(!b)return;const q=b.dataset,Sx=S();let chg=true;
   if(q.tab){st.tab=q.tab;}
   else if(q.gm){st.gm=q.gm;}
   else if(q.mode){st.mode=q.mode;}
@@ -1233,7 +1238,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   else if(q.incmode){st.inc[q.incmode]=true;}
   else if(q.clrmode){const m=q.clrmode;st.SM[m]=clone(DEF[m]);st.inc[m]=false;toast(MODES[m]+' 지움');}
   else chg=false;
-  if(chg){if(q.k||q.ak||q.sk)st.inc[st.mode]=true;if(!q.dq&&!q.acid&&!q.tab&&!q.gm&&!q.mode)st.example=false;render();}});
+  if(chg){if(q.k||q.ak||q.sk)st.inc[st.mode]=true;if(!q.dq&&!q.acid&&!q.tab&&!q.gm&&!q.mode)st.example=false;render();}};
+document.addEventListener('click',onClick);
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='age'){st.age=parseInt(t.value)||'';st.example=false;keep(t);}
   else if(t.id==='w'){st.wt=parseFloat(t.value)||'';keep(t);}
@@ -1245,6 +1251,48 @@ async function copy(t,m){try{await navigator.clipboard.writeText(t);toast(m)}cat
 $('cEmr').onclick=()=>copy(LAST.emr,'EMR 차트 복사됨');
 $('cOrd').onclick=()=>copy(LAST.orders,'오더 복사됨');
 $('cAll').onclick=()=>copy(LAST.emr+'\n\n'+LAST.orders,'차트 + 오더 복사됨');
-$('newpt').onclick=()=>{Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});st.add=[];st.rm=[];st.inc={};st.ov={};st.age='';st.sex='';st.wt='';st.renal='정상';st.flags=[];st.example=false;st.tab='chart';render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
+$('newpt').onclick=()=>{st.showRx=false;Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});st.add=[];st.rm=[];st.inc={};st.ov={};st.age='';st.sex='';st.wt='';st.renal='정상';st.flags=[];st.example=false;st.tab='chart';render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
+// ---- 처방 작은 창: Document Picture-in-Picture (항상 위) → 안 되면 팝업 창 ----
+let rxWin=null;
+async function toggleRxWin(){
+  if(rxWin&&!rxWin.closed){rxWin.close();rxWin=null;render();return;}
+  let w=null;
+  try{if('documentPictureInPicture' in window)w=await documentPictureInPicture.requestWindow({width:420,height:560});}catch(e){w=null;}
+  if(!w){w=window.open('','rxwin','popup,width=430,height=620');
+    if(!w){toast('작은 창이 막혔어요 — 주소창 오른쪽에서 팝업 허용');return;}
+    w.document.open();w.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>처방</title></head><body></body></html>');w.document.close();}
+  rxWin=w;const d=w.document;d.title='처방';
+  document.querySelectorAll('style,link[rel="stylesheet"]').forEach(n=>d.head.appendChild(n.cloneNode(true)));
+  d.head.insertAdjacentHTML('beforeend','<style>html,body{margin:0;background:var(--bg)}body{padding:10px 12px 16px;min-width:0}#pw .pwh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}#pw .pwh .btn{padding:6px 12px;font-size:13px}#pw .incsum{margin:0 0 6px}#pw .rx{margin-top:4px}#pw details{margin-top:10px;padding:6px 10px}#pw h3{font-size:13px;margin:10px 0 4px}</style>');
+  d.body.innerHTML='<div id="pw"></div>';
+  d.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.pcopy;
+    if(k){const t=k==='ord'?LAST.orders:k==='p'?LAST.p:LAST.full;pcopy(w,t||'',b);return;}onClick(e);});
+  d.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.ov){const v=parseInt(t.value);if(v>0){st.ov[t.dataset.ov]=v;render();}}});
+  w.addEventListener('pagehide',()=>{rxWin=null;setTimeout(render,0);});
+  render();}
+async function pcopy(w,t,b){const old=b.textContent;
+  try{await w.navigator.clipboard.writeText(t);}catch(e){const ta=w.document.createElement('textarea');ta.value=t;w.document.body.appendChild(ta);ta.select();try{w.document.execCommand('copy')}catch(_){}ta.remove();}
+  b.textContent='복사됨';setTimeout(()=>{b.textContent=old},1000);}
+function renderRxWin(){
+  if(!rxWin)return;if(rxWin.closed){rxWin=null;return;}
+  const d=rxWin.document,pw=d.getElementById('pw');if(!pw)return;
+  const det=pw.querySelector('details'),open=det?det.open:false;
+  const jd=$('dx').closest('.jd');
+  pw.innerHTML=`<div class="pwh"><button class="btn primary" data-pcopy="ord">오더 복사</button><button class="btn" data-pcopy="p">P&gt; 줄</button><button class="btn" data-pcopy="all">차트 전체</button></div>`+
+    $('alerts').innerHTML+`<div class="rx">${$('orders').innerHTML}</div><div class="btns" style="margin-top:8px">${$('alts').innerHTML}</div>${$('advice').innerHTML}`+
+    `<details${open?' open':''}><summary>판단</summary><div class="jd">${jd.innerHTML}</div></details>`;}
+window.addEventListener('pagehide',()=>{if(rxWin&&!rxWin.closed)rxWin.close();});
+// ---- 처방 가리기: 환자도 모니터를 볼 수 있으므로 처방은 기본 숨김 (EMR 차트는 표시, P> 줄만 가림) ----
+st.showRx=false;
+(function(){
+  const ordHead=$('orders').previousElementSibling, jd=$('dx').closest('.jd');
+  [ordHead,$('orders'),$('alts'),$('advice'),$('alldrugs').closest('details'),$('ordtxt'),$('ordtxt').previousElementSibling,jd,jd.previousElementSibling,$('cAll'),$('cOrd')].forEach(el=>el&&el.classList.add('rx-only'));
+  ordHead.insertAdjacentHTML('beforebegin','<div class="rxgate" id="rxgate"><button class="btn" id="rxToggle"></button><button class="btn" id="rxPop"></button></div>');
+  $('cOrd').insertAdjacentHTML('afterend','<button class="btn rx-only" id="cP">P&gt; 줄만</button>');
+  $('rxToggle').onclick=()=>{st.showRx=!st.showRx;render();};
+  $('rxPop').onclick=()=>toggleRxWin();
+  $('cP').onclick=()=>copy(LAST.p||'','P> 줄 복사됨');
+  document.head.insertAdjacentHTML('beforeend','<style>#res.rxhide .rx-only{display:none!important}.rxgate{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}#rxToggle[aria-expanded="true"]{background:var(--accent-weak);border-color:var(--accent);color:var(--accent)}</style>');
+})();
 buildStatic();render();
 </script></body></html>

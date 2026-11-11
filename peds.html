@@ -185,13 +185,15 @@ function rxEngine(S, ctx){
   const muc=g('muc');
   const cough=g('cough')&&g('cough')!=='없음'?g('cough'):'';
   const cdur=g('cdur');
+  // 가래 (보호자 보고)
+  const spu=g('spu')==='있음', spuThick=spu&&g('spuv')==='끈적', wetC=cough==='젖은'||(!!cough&&spu&&cough!=='개 짖는 소리'&&cough!=='발작성');
   const tmR=g('tmr'), tmL=g('tml');
   const abx=g('abx')&&g('abx')!=='없음'?g('abx'):''; const abxDay=parseInt(g('abxday'))||0;
   const resp=g('resp'); const comp=g('comp');
   const hx=(ctx.hx||'');
   const allergyBg=muc==='창백·물컹'||has('nose','가려움·코 비빔')||/알레르기비염|비염 가족력|아토피|천식/.test(hx);
-  const allergyPattern=muc==='창백·물컹'||(has('nose','재채기')&&has('nose','가려움·코 비빔'));
-  const thick=sticky||((rhin==='노랑·초록'||(suct&&sCol==='노랑·초록'))&&(day||0)>=4)||cough==='젖은';
+  const allergyPattern=muc==='창백·물컹'||has('nose','가려움·코 비빔');
+  const thick=spuThick||sticky||((rhin==='노랑·초록'||(suct&&sCol==='노랑·초록'))&&(day||0)>=4)||cough==='젖은';
   const sev=S.sev||[];
 
   // ---- 중증 소견 ----
@@ -210,14 +212,14 @@ function rxEngine(S, ctx){
   const sinSevere=fever==='39 이상'&&fdays>=3&&(rhin==='노랑·초록'||sticky);
   const sinus=sinPersist||sinWorse||sinSevere;
   const croup=cough==='개 짖는 소리';
-  const pbb=cough==='젖은'&&cdur==='4주 이상'&&!has('lung','천명');
+  const pbb=wetC&&cdur==='4주 이상'&&!has('lung','천명');
   const pertussis=cough==='발작성';
   const crackles=has('lung','국소 수포음');
   const betaLactam=/amox|세팔로/.test(abx);
   const myco=ge(60)&&(cough==='마른'||crackles)&&(fever||crackles)&&(((day||0)>=5)||(betaLactam&&abxDay>=3&&resp==='그대로'));
   const gasPos=g('radt')==='양성';
   const gasTest=!gasPos&&g('radt')!=='음성'&&g('throat')==='삼출물'&&!cough&&!rhin.match(/맑음|흰|노랑/)&&ge(36);
-  const postnasal=has('ctime','눕자마자')||has('ctime','아침 가래')||pnd;
+  const postnasal=has('ctime','눕자마자')||has('ctime','아침 가래')||has('spux','아침에 많음')||pnd;
   const hyper=(has('ctime','새벽')||has('ctime','운동·웃음 시'))&&cough==='마른'&&(cdur==='2–4주'||cdur==='4주 이상'||/천식/.test(hx));
   const reflux=has('ctime','식후');
   const wheeze=has('lung','천명');
@@ -237,6 +239,11 @@ function rxEngine(S, ctx){
     ax3=`${cough} 기침${cdur?' · '+cdur:''} → ${t.length?t.join(', '):'표현형 미분류 — 기침 시점 확인'}`;}
   out.axes.push(['축3 기침',ax3]);
   out.axes.push(['축4 점도',(thick?'끈적함 → 점액용해제 고려 (2세 이상)':((rhin==='맑음'||(suct&&sVis==='묽음'))?'묽음 → 점액용해제 불필요':'—'))+(suct?` · 석션: ${[g('sAmt'),sCol,sVis].filter(Boolean).join(' ')||'시행'}${sPnd?', 후비루 흡인 많음':''}`:'')]);
+  if(spu){const ax=out.axes.find(x=>x[0]==='축4 점도');if(ax)ax[1]+=` · 가래: ${[g('spuc'),g('spuv')].filter(Boolean).join(' ')||'있음'}`;}
+  if(spu&&g('spuc')==='피 섞임')out.warn.push('피 섞인 가래 — 대개 코피·인두 자극, 반복되거나 숨참·체중 감소가 있으면 흉부 X선');
+  if(spu&&has('spux','기침 끝에 토하며 나옴')&&(cdur==='2–4주'||cdur==='4주 이상'))out.warn.push('기침 끝 구토 + 2주 이상 — 백일해 PCR 고려');
+  if(spu&&g('spuc')==='노랑·초록')avoid('가래 색(노랑·초록)만으로 항생제');
+  if(spu&&has('spux','가래 끓는 소리(그르렁)')&&lt(24)&&!has('lung','천명')&&!has('lung','국소 수포음'))order('그르렁 소리: 대부분 코·목 분비물이 울리는 소리 — 코 흡인·수분이 먼저, 청진 정상이면 가래약 불필요','Rattling = transmitted upper airway secretions; suction, fluids');
   if(suct&&has('sx','한쪽만')&&sCol==='노랑·초록')out.warn.push('석션: 한쪽만 화농성 분비물 — 코 이물·한쪽 부비동염 확인');
   if(suct&&sCol==='피 섞임')out.warn.push('석션: 피 섞임 — 대개 점막 자극, 반복되면 흡인 압력 낮추고 보습');
 
@@ -385,7 +392,8 @@ function rxEngine(S, ctx){
   if(reflux) order('역류형: 자세·수유 조절 ± 단기 위산억제제','Positional/feeding measures ± short PPI');
   if(cough&&postnasal) avoid('진해제·류코트리엔 (후비루형 — 원인은 코)');
   if(cough==='마른'&&!hyper&&!croup&&!pertussis&&!postnasal){
-    if(ge(24)&&W){ if(W>=10&&W<20) order('(잠 못 잘 때) 제로레보 1회 18 mg = 3 mL 하루 3회, 6시간 이상 간격','Levodropropizine 18 mg tid'); else if(W>=20&&W<=30) order('(잠 못 잘 때) 제로레보 1회 30 mg = 5 mL 하루 3회, 6시간 이상 간격','Levodropropizine 30 mg tid'); }
+    const sl=has('cx2','잠 깸')?'':'(잠 못 잘 때) ';
+    if(ge(24)&&W){ if(W>=10&&W<20) order(sl+'제로레보 1회 18 mg = 3 mL 하루 3회, 6시간 이상 간격','Levodropropizine 18 mg tid'); else if(W>=20&&W<=30) order(sl+'제로레보 1회 30 mg = 5 mL 하루 3회, 6시간 이상 간격','Levodropropizine 30 mg tid'); }
     else if(lt(24)) avoid('제로레보·시네츄라 — 2세 미만');
   }
   if(cough&&ge(12)&&(has('ctime','눕자마자')||has('ctime','새벽'))) order('밤 기침: 자기 전 꿀 2.5–5 mL (1세 이상)','Honey 2.5-5 mL at bedtime');
@@ -850,32 +858,34 @@ function partsV2(mode,S,c){
   const g=k=>S[k]||'',has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v,pm=b=>b?'+':'-';
   const cur=[],prev=[],etc=[];
   const pe={suct:'',fever:false,C:false,Sp:false,R:false,sn:false,st:false,N:false,V:false,D:false,oral:false,urin:false,cond:false,drowsy:false,ln:false,nose:'IT n  bog-  MM-',abd:false,reb:false,br:'clear',ti:false,tx:'',tmr:'N',tml:'N',skin:''};
-  const fevCode=(f,d)=>f&&f!=='없음'?`F${d?d.replace('일','').replace('+','+')+'d':''} ${f.replace('39 이상','39+').replace('–','-')}`.trim():'F-';
+  const fevCode=(f,d)=>f&&f!=='없음'?`F${d?d.replace('일','').replace('+','+')+'d':''} ${f.replace('39 이상','39+').replace('40 이상','40+').replace(/–/g,'-')}`.trim():'F-';
   const crs={'좋아지는 중':'I','그대로':'S','좋아지다 다시 나빠짐':'R'};
   if(mode==='resp'){
     const day=g('day').replace('D','');
     const ap={'간격 벌어짐':'AP q4>q8','간격 짧아짐':'AP q8>q4','변화 없음':'AP q6'}[g('antiint')]||'AP-';
-    cur.push(`D${day} ${crs[g('course')]||'S'}  ${fevCode(g('fever'),g('fdays'))}  ${ap}`);
+    cur.push(`D${day} ${crs[g('course')]||'S'}  ${fevCode(S._ftxt||g('fever'),S._fdtxt||g('fdays'))}  ${ap}`);
     const rc={'맑음':'c','흰 점액':'m','노랑·초록':'y'}[g('rhin')];
     const rx=(S.rhinx||[]).map(x=>({'끈적함':'s','후비루':'pnd','한쪽만 악취':'uni','양 많음':'++'})[x]).filter(Boolean);
     const cc={'마른':'d','젖은':'w','개 짖는 소리':'b','발작성':'p'}[g('cough')];
     const ct=(S.ctime||[]).map(x=>({'눕자마자':'L','새벽':'N','아침 가래':'A','식후':'M','운동·웃음 시':'X'})[x]);
     const cd={'2–4주':' 3wk','4주 이상':' 5wk'}[g('cdur')]||'';
-    cur.push(`R${rc?' '+[rc,...rx].join(' '):'-'}  C${cc?' '+cc+(ct.length?' @'+ct.join(','):'')+cd:'-'}`);
+    const spu=g('spu')==='있음',spx=(S.spux||[]).map(x=>({'가래 끓는 소리(그르렁)':'rat','뱉어냄':'exp','기침 끝에 토하며 나옴':'PTV','아침에 많음':'AM'})[x]);
+    const spC=spu?([({'흰색·투명':'w','노랑·초록':'y','피 섞임':'bl'})[g('spuc')],({'끈적':'s','묽음':'thin'})[g('spuv')],...spx].filter(Boolean).join(' ')||'+'):'';
+    cur.push(`R${rc?' '+[rc,...rx].join(' '):'-'}  C${cc?' '+cc+(ct.length?' @'+ct.join(','):'')+cd:'-'}  Sp${spC?' '+spC:'-'}`);
     if(has('conj','화농성 결막염'))cur.push('conj+ (purulent)');
     const ab={'amox(표준)':'AMX','amox 고용량':'AMXh','amox/clav':'AC14','2세대 세팔로':'CEF2','3세대 세팔로':'CFD','마크로라이드':'AZ'}[g('abx')];
     const rr={'좋아짐':'I','열은 내림·콧물기침 남음':'P','그대로':'N','좋아지다 다시 열':'R'}[g('resp')];
     const cx={'양호':'ok','빠뜨림':'miss','토함·뱉음':'vom','설사로 중단':'dia'}[g('comp')]||'ok';
     prev.push(ab?`Abx ${ab} D${g('abxday')}${rr?' r:'+rr:''}  cx ${cx}`:`Abx-${has('flags','최근 30일 내 항생제')?' (30d+)':''}  cx ok`);
     if(g('radt')&&g('radt')!=='안 함')etc.push(`RADT ${g('radt')==='양성'?'+':'-'}`);
-    pe.fever=nz2(g('fever'));pe.C=!!cc;pe.Sp=cc==='w'||ct.includes('A');pe.R=!!rc;pe.sn=has('nose','재채기');pe.st=has('nose','코막힘');
+    pe.fever=nz2(g('fever'));pe.C=!!cc;pe.Sp=cc==='w'||ct.includes('A')||spu;pe.R=!!rc;pe.sn=has('nose','재채기');pe.st=has('nose','코막힘');
     pe.nose=({'정상':'IT n  bog-  MM-','창백·물컹':'IT p  bog+  MM-','선홍·부종':'IT r  bog-  MM-','중비도 고름':'IT r  bog-  MM+','비후(색 정상)':'IT h  bog-  MM-'})[g('muc')]||'IT n  bog-  MM-';
     if(g('suct')==='시행'){const sx=S.sx||[];pe.suct='Suct: '+[({'적음':'+','보통':'++','많음':'+++'})[g('sAmt')]||'+',({'맑음':'c','흰 점액':'m','노랑·초록':'y','피 섞임':'bl'})[g('sCol')]||'',({'묽음':'thin','끈적':'s','덩어리':'plug'})[g('sVis')]||'',sx.includes('뒤(후비루)에서 많이 나옴')?'pnd':'',sx.includes('한쪽만')?'uni':'',sx.includes('석션 후 코막힘 좋아짐')?'obst↓':''].filter(Boolean).join(' ');}
     const tm={'정상':'N','발적만':'E','팽륜':'B','삼출액':'OME'};pe.tmr=tm[g('tmr')]||'N';pe.tml=tm[g('tml')]||'N';
     pe.ti=g('throat')==='발적'||g('throat')==='삼출물';pe.tx=g('throat')==='삼출물'?' (ex)':'';pe.ln=g('ln')==='앞목 압통';
     const lu=(S.lung||[]).filter(x=>x!=='clear').map(x=>({'천명':'wh','국소 수포음':'cr','흉곽 함몰':'ret'})[x]);if(lu.length)pe.br=lu.join(', ');
   } else if(mode==='gi'){
-    cur.push(`D${S._day||1} S  ${fevCode(g('fever'))}  AP-`);cur.push('R-  C-');
+    cur.push(`D${S._day||1} S  ${fevCode(S._ftxt||g('fever'))}  AP-`);cur.push('R-  C-  Sp-');
     const n=v=>({'없음':'0','1–2회':'2','3–5회':'4','6회+':'6+','1–3회':'3','4–6회':'6','7회+':'8+'})[v]||'?';
     cur.push(`GI: V${n(g('vomit'))} / D${n(g('diarr'))}  bile${pm(has('color','초록색 구토'))} blood${pm(has('color','혈변'))}  UO${({'6시간 이내':'<6','6–8시간':'6-8','8–12시간':'8-12','12시간+':'12+'})[g('lastvoid')]}h  ORS ${({'안 해봄':'-','먹고 유지됨':'ok','먹으면 토함':'vom'})[g('ors')]}`);
     const ix=(k,a)=>Math.max(0,a.indexOf(g(k)));const a=ix('look',['정상','보챔·목말라함','처짐·축 늘어짐']),e=ix('eyes',['정상','약간 꺼짐','많이 꺼짐']),m=ix('muc',['촉촉','끈적','마름']),t=ix('tears',['있음','줄었음','없음']);
@@ -888,7 +898,7 @@ function partsV2(mode,S,c){
     pe.abd=nz2(g('pain'));pe.reb=g('abdtd')==='반발통';
   } else if(mode==='fever'){
     const fd=g('fdays').replace('일','')||'_';
-    cur.push(`D${fd.replace('+','')} S  F${fd}d  AP-`);cur.push(`R${has('source','콧물·기침')?' c':'-'}  C${has('source','콧물·기침')?' d':'-'}`);
+    cur.push(`D${fd.replace('+','')} S  F${fd}d  AP-`);cur.push(`R${has('source','콧물·기침')?' c':'-'}  C${has('source','콧물·기침')?' d':'-'}  Sp-`);
     const src=(S.source||[]).filter(x=>x!=='없음').map(x=>({'콧물·기침':'URI','목(인두)':'pharynx','귀':'ear','폐':'lung','소변 증상':'urinary','설사·구토':'GI','발진':'rash'})[x]);
     cur.push(`FWS: Tmax${({'38.0–38.9':'38.x','39.0–39.9':'39.x','40 이상':'40+'})[g('tmax')]}  post-AP ${g('after')==='해열 후에도 처짐'?'lethargic':'play'}  PO ${({'평소대로':'nl','절반 정도':'1/2','절반 미만':'<1/2'})[g('intake')]||'nl'}  UO ${g('urine')==='줄었음'?'dec':'nl'}  src${src.length?' '+src.join(','):'-'}  vacc ${g('vacc')==='미완료'?'inc':'ok'}  Sz${({'단순 열성경련':' s','복합 열성경련':' c'})[g('seizure')]||'-'}`);
     if(g('young'))cur.push(`age ${({'28일 이하':'<=28d','29일–3개월':'29d-3mo','3–6개월':'3-6mo'})[g('young')]}`);
@@ -900,7 +910,7 @@ function partsV2(mode,S,c){
     if(has('source','목(인두)'))pe.ti=true;if(has('source','콧물·기침')){pe.C=pe.R=true;}
   } else if(mode==='rash'){
     const fev=g('order')&&g('order')!=='열 없음';
-    cur.push(`D${S._day||1} S  ${fev?'F'+(g('order')==='5일+ 열과 함께'?'5+d':'+'):(g('order')==='열 내린 뒤'?'F-(~D3)':'F-')}  AP-`);cur.push('R-  C-');
+    cur.push(`D${S._day||1} S  ${fev?'F'+(g('order')==='5일+ 열과 함께'?'5+d':'+'):(g('order')==='열 내린 뒤'?'F-(~D3)':'F-')}  AP-`);cur.push('R-  C-  Sp-');
     const sh=(S.shape||[]).map(x=>({'두드러기(부풀어 오름)':'whl','과녁 모양':'tgt','반점·구진':'mp','작은 물집':'ves','수두형 물집(여러 단계)':'vz','꿀색 딱지':'crust','사포처럼 까슬':'sp','점상출혈(눌러도 안 사라짐)':'pete','움푹 파인 궤양 무리':'pit'})[x]);
     const st=(S.site||[]).map(x=>({'얼굴':'face','몸통':'trunk','접히는 곳':'flex','손발':'hand/foot','입안':'oral','기저귀 부위':'diaper','두피':'scalp'})[x]);
     const sys=(S.resp||[]).filter(x=>x!=='없음').map(x=>({'쌕쌕·숨참':'wh','목소리 변화':'voice','반복 구토':'vom','처짐·실신':'col'})[x]);
@@ -914,7 +924,7 @@ function partsV2(mode,S,c){
     pe.fever=fev;pe.drowsy=sys.includes('col')||has('sev','처짐·기면');pe.V=sys.includes('vom');if(sys.includes('wh'))pe.br='wh';pe.ti=has('mouth','목젖 주위 물집')||has('shape','사포처럼 까슬');
     pe.skin=`Skin: ${sh.join(',')} (${st.join(',')})`;
   } else if(mode==='uti'){
-    const fev=has('sx','열');cur.push(`D${S._day||2} S  ${fev?'F'+(S._day||2)+'d':'F-'}  AP-`);cur.push('R-  C-');
+    const fev=has('sx','열');cur.push(`D${S._day||2} S  ${fev?'F'+(S._day||2)+'d':'F-'}  AP-`);cur.push('R-  C-  Sp-');
     const sx=(S.sx||[]).filter(x=>x!=='열').map(x=>({'배뇨통':'dysuria','빈뇨·급박뇨':'freq/urg','새로 생긴 야뇨·지림':'new enuresis','옆구리 통증':'flank pain','혈뇨':'hematuria'})[x]);
     if(sx.length)cur.push('U/sx: '+sx.join(', '));
     if(g('appear')==='아파 보임·못 먹음/토함')cur.push('ill-appearing, PO intolerance');
@@ -937,7 +947,7 @@ function assembleV2(P,c){
   if(/^D_/.test(head[0]||'')){const o=P.find(p=>!/^D_/.test(f(p,0)));if(o)head[0]=f(o,0);}
   if(/^F-/.test(head[1]||'')){const o=P.find(p=>f(p,1)&&!/^F-/.test(f(p,1)));if(o)head[1]=f(o,1);}
   const rcP=P.find(p=>p.mode==='resp')||P.find(p=>p.mode==='fever');
-  const cur=[head.join('  '),rcP?rcP.cur[1]:'R-  C-'];
+  const cur=[head.join('  '),rcP?rcP.cur[1]:'R-  C-  Sp-'];
   P.forEach(p=>p.cur.slice(2).forEach(l=>{if(l&&!cur.includes(l))cur.push(l);}));
   const pa=P.flatMap(p=>p.prev);const prev=[pa.find(x=>!/^Abx-/.test(x))||pa[0]||'Abx-  cx ok'];
   const etc=[...new Set(P.flatMap(p=>p.etc))].filter(Boolean);
@@ -1054,10 +1064,11 @@ resp:[
  ['c','day','병일',DAYC],
  ['c','course','경과',['좋아지는 중','그대로','좋아지다 다시 나빠짐']],
  ['sec','증상 (있으면 체크)'],
- ['s','fever','열','38.5–38.9','없음',[['c','fever','최고',OPT.fever],['c','fdays','기간',['1일','2일','3일','4일+']],['c','antiint','해열제 간격',['변화 없음','간격 벌어짐','간격 짧아짐']]],['fdays','antiint']],
+ ['fv'],
  ['s','rhin','콧물','맑음','없음',[['c','rhin','성상',['맑음','흰 점액','노랑·초록']],['c','rhinx','특징',['끈적함','양 많음','후비루','한쪽만 악취'],1]],['rhinx']],
  ['a','nose','코막힘','코막힘'],['a','nose','재채기','재채기'],['a','nose','가려움·코 비빔','코 가려움'],
- ['s','cough','기침','마른','없음',[['c','cough','종류',['마른','젖은','개 짖는 소리','발작성']],['c','ctime','시점',['눕자마자','새벽','아침 가래','식후','운동·웃음 시'],1],['c','cdur','기간',['2주 미만','2–4주','4주 이상']]],['ctime','cdur']],
+ ['s','cough','기침','마른','없음',[['c','cough','종류',['마른','젖은','개 짖는 소리','발작성']],['c','ctime','시점',['눕자마자','새벽','아침 가래','식후','운동·웃음 시'],1],['c','cdur','기간',['2주 미만','2–4주','4주 이상']],['a','cx2','잠 깸','기침으로 잠 깸·일상 지장']],['ctime','cdur','cx2']],
+ ['s','spu','가래','있음','없음',[['c','spuc','색',['흰색·투명','노랑·초록','피 섞임']],['c','spuv','점도',['묽음','끈적']],['c','spux','양상',['가래 끓는 소리(그르렁)','뱉어냄','기침 끝에 토하며 나옴','아침에 많음'],1]],['spuc','spuv','spux']],
  ['s','abx','항생제 복용 중','amox/clav','없음',[['c','abx','약',['amox(표준)','amox 고용량','amox/clav','2세대 세팔로','3세대 세팔로','마크로라이드','기타']],['c','abxday','복용일',['1','2','3','4','5','6','7+']],['c','resp','반응',['좋아짐','열은 내림·콧물기침 남음','그대로','좋아지다 다시 열']],['c','comp','순응도',['양호','빠뜨림','토함·뱉음','설사로 중단']]],['abxday','resp','comp']],
  ['a','flags','최근 30일 내 항생제','최근 30일 내 항생제'],
  ['sec','진찰 (이상만 고르기 — 기본값 정상)'],
@@ -1076,7 +1087,7 @@ gi:[
  ['sec','증상 (있으면 체크)'],
  ['s','vomit','구토','3–5회','없음',[['c','vomit','횟수',['1–2회','3–5회','6회+']],['a','color','초록색 구토','초록색(담즙) 구토']],[]],
  ['s','diarr','설사','4–6회','없음',[['c','diarr','횟수',['1–3회','4–6회','7회+']],['a','color','혈변','혈변'],['a','color','물설사','물설사'],['a','color','점액변','점액변']],[]],
- ['s','fever','열','38.5–38.9','없음',[['c','fever','최고',OPT.fever]],[]],
+ ['fv'],
  ['s','pain','복통','간헐적','없음',[['c','pain','양상',['간헐적','심함·지속']],['c','abdtd','배 진찰',['없음','압통','반발통']]],['abdtd']],
  ['a','flags','다음·다뇨','많이 마시고 많이 봄'],['a','flags','복부 팽만','복부 팽만'],['a','flags','최근 항생제','최근 항생제'],
  ['sec','탈수 4항목 (기본값 정상)'],
@@ -1090,8 +1101,7 @@ gi:[
  ['sec','중증 소견'],['c','sev','',['처짐·기면','경련','점상출혈','호흡곤란·함몰'],1]],
 fever:[
  ['sec','열'],
- ['c','fdays','열 기간',['1일','2일','3일','4일','5일+']],
- ['c','tmax','최고 체온',['38.0–38.9','39.0–39.9','40 이상']],
+ ['fv',1],
  ['c','after','해열 후',['해열 후 잘 놂','해열 후에도 처짐']],
  ['c','intake','먹는 양',['평소대로','절반 정도','절반 미만']],
  ['c','urine','소변',['정상','줄었음']],
@@ -1141,15 +1151,16 @@ uti:[
  ['sec','중증 소견'],['c','sev','',['처짐·기면','탈수','호흡곤란·함몰'],1]]
 };
 const DEF={
- resp:{visit:'초진',day:'',course:'그대로',fever:'없음',rhin:'없음',suct:'안 함',sAmt:'',sCol:'',sVis:'',sx:[],rhinx:[],nose:[],cough:'없음',ctime:[],abx:'없음',flags:[],muc:'안 봄',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],sev:[]},
+ resp:{cx2:[],visit:'초진',day:'',course:'그대로',fever:'없음',rhin:'없음',spu:'없음',spuc:'',spuv:'',spux:[],suct:'안 함',sAmt:'',sCol:'',sVis:'',sx:[],rhinx:[],nose:[],cough:'없음',ctime:[],abx:'없음',flags:[],muc:'안 봄',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],sev:[]},
  gi:{_dayc:'',vomit:'없음',diarr:'없음',color:[],fever:'없음',pain:'없음',abdtd:'없음',flags:[],look:'정상',eyes:'정상',muc:'촉촉',tears:'있음',lastvoid:'6시간 이내',ors:'안 해봄',contact:[],sev:[]},
  fever:{fdays:'',tmax:'',after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:[],ua:'안 함',vacc:'완료',seizure:'없음',flu:'해당 없음',chronic:[],kawa:[],sev:[]},
  rash:{_dayc:'',order:'열 없음',shape:[],move:'',site:[],itch:'없음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],mouth:[],sev:[]},
  uti:{_dayc:'',sx:[],appear:'좋아 보임',local:'해당 없음',method:'',le:'',nit:'',micro:'안 함',culture:'',abxday:'아직 안 씀',prev:'처음',constip:'없음',sev:[]}
 };
+const FVT=['37.5–37.9','38.0–38.9','39.0–39.9','40 이상'],FVD=['1일','2일','3일','4일','5일+'],FVA=['변화 없음','간격 벌어짐','간격 짧아짐'];
 const MODES={resp:'감기·호흡기',gi:'구토·설사',fever:'발열',rash:'발진',uti:'소변'};
 const clone=o=>JSON.parse(JSON.stringify(o));
-let st={mode:'resp',w:15,age:'3세',sex:'',hx:[],days:3,SM:{},add:[],rm:[],ov:{},inc:{resp:true},step:0.1,
+let st={mode:'resp',w:15,age:'3세',sex:'',hx:[],days:3,SM:{},add:[],rm:[],ov:{},inc:{resp:true},FV:{on:false,tmax:'',fdays:'',antiint:''},step:0.1,
   conc:{...CONC_DEF},stock:{amox:false,clinda:false,dexa:false},example:true};
 Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});
 try{const s=JSON.parse(localStorage.getItem('rxuni_cfg')||'{}');if(s.conc)st.conc={...st.conc,...s.conc};if(s.stock)st.stock={...st.stock,...s.stock};if(s.step)st.step=s.step;if(s.days)st.days=s.days;}catch(e){}
@@ -1160,7 +1171,19 @@ const S=()=>st.SM[st.mode];
 const ageM=()=>{const a=AGES.find(x=>x[0]===st.age);return a?a[1]:null};
 function ctx(){const m=ageM();const lbl=m==null?'':m<1?'신생아':m<6?'1~5개월':m<12?'6~11개월':`${Math.min(15,Math.floor(m/12))}세`;
   return {ageM:m,ageLabel:lbl,sex:st.sex,wt:st.w,hx:st.hx.join(', '),cfg:{amox:st.stock.amox,clinda:st.stock.clinda,dexa:st.stock.dexa,apap:0,dexi:0,azi:0}};}
+const fvHi=()=>st.FV.on&&!!st.FV.tmax&&st.FV.tmax!=='37.5–37.9';
+function autoSrc(){const s=[];const R=st.SM.resp,G=st.SM.gi;const on=m=>st.inc[m];
+  if(on('resp')){if((R.rhin&&R.rhin!=='없음')||(R.cough&&R.cough!=='없음')||(R.nose||[]).length)s.push('콧물·기침');if(R.throat&&R.throat!=='정상')s.push('목(인두)');if(['팽륜','삼출액'].includes(R.tmr)||['팽륜','삼출액'].includes(R.tml))s.push('귀');if((R.lung||[]).includes('국소 수포음'))s.push('폐');}
+  if(on('gi')&&((G.vomit&&G.vomit!=='없음')||(G.diarr&&G.diarr!=='없음')))s.push('설사·구토');
+  if(on('rash')&&(st.SM.rash.shape||[]).length)s.push('발진');
+  if(on('uti')&&(st.SM.uti.sx||[]).some(x=>x!=='열'))s.push('소변 증상');
+  return s;}
 function prep(mode,S0,c){const S={...S0};
+  const F=st.FV,fOn=F.on&&!!F.tmax,MAP={'37.5–37.9':'37.5–38.4','38.0–38.9':'38.5–38.9','39.0–39.9':'39 이상','40 이상':'39 이상'};
+  if(mode==='resp'){S.fever=fOn?MAP[F.tmax]:'없음';S.fdays=F.fdays==='4일'||F.fdays==='5일+'?'4일+':F.fdays;S.antiint=F.antiint;S._ftxt=fOn?F.tmax:'';S._fdtxt=F.fdays;}
+  if(mode==='gi'){S.fever=fOn?MAP[F.tmax]:'없음';S._ftxt=fOn?F.tmax:'';}
+  if(mode==='fever'){S.tmax=fvHi()?F.tmax:'';S.fdays=F.fdays;const a=autoSrc();if(a.length)S.source=[...new Set([...(S.source||[]).filter(x=>x!=='없음'),...a])];}
+  if(mode==='uti'&&fvHi()&&!(S.sx||[]).includes('열'))S.sx=[...(S.sx||[]),'열'];
   if(S._dayc){const n=S._dayc==='D10+'?10:parseInt(S._dayc.slice(1));S._day=n;if(mode==='gi')S.dur=n<=1?'오늘':n<=2?'1–2일':n<=6?'3–6일':'7일+';}
   if(mode==='fever'){const m=c.ageM;S.young=m==null?'':m<1?'28일 이하':m<3?'29일–3개월':m<6?'3–6개월':'';}
   if(mode==='rash'&&st.hx.includes('아토피피부염')&&S.atopy==='아님')S.atopy='아토피 병력';
@@ -1204,8 +1227,15 @@ const ordStr=c=>`${fmt(dayTot(c))}${c.unit}/${c.times}/${c.days}`;
 let LAST={emr:'',orders:''};
 function selected(rec){const set=new Set([...rec.prim,...st.add]);st.rm.forEach(x=>set.delete(x));
   return [...set].sort((x,y)=>BORD.indexOf(BLOCK[x])-BORD.indexOf(BLOCK[y]));}
+function fvRow(k,lab,opts){return `<div class="crow"><span class="lab">${lab}</span><div class="chips">${opts.map(op=>`<button class="chip" data-fvk="${k}" data-v="${esc(op)}" aria-pressed="${st.FV[k]===op}">${esc(op)}</button>`).join('')}</div></div>`;}
 function rowHTML(r,Sx){
   const t=r[0];
+  if(t==='fv'){const F=st.FV,always=!!r[1],open=always||F.on;
+    const det=`<div class="det">${fvRow('tmax','최고',FVT)}${fvRow('fdays','기간',FVD)}${fvRow('antiint','해열제 간격',FVA)}</div>`;
+    const head=always?`<div class="hint" style="margin:2px 0 4px">감기·구토설사 탭의 “열”과 같은 값입니다</div>`
+      :`<button class="ck" data-fvon="1" aria-pressed="${F.on}"><span class="box">${F.on?'✓':''}</span>열 <span class="hint" style="margin-left:4px">모든 탭 공통</span></button>`;
+    const src=always?autoSrc():[];
+    return `<div class="srow">${head}${open?det:''}${src.length?`<div class="hint" style="margin:4px 0 0 2px">원인 부위 자동 반영: ${esc(src.join(', '))}</div>`:''}</div>`;}
   if(t==='sec')return `<div class="sec">${esc(r[1])}</div>`;
   if(t==='c'){const [,key,lab,opts,multi,o]=r;if(o&&o.show&&!o.show(Sx))return '';const v=Sx[key];
     return `<div class="crow"><span class="lab">${esc(lab)}</span><div class="chips">${opts.map(op=>`<button class="chip${key==='sev'?' sev':''}" data-k="${key}" data-v="${esc(op)}" data-m="${multi?1:0}" aria-pressed="${Array.isArray(v)?v.includes(op):v===op}">${esc(op)}</button>`).join('')}</div></div>`;}
@@ -1217,30 +1247,48 @@ function renderInputs(){
   const Sx=S();const spec=SPEC[st.mode];let html='',buf=[];
   const flush=()=>{if(buf.length){html+=`<div class="ckgrid">${buf.join('')}</div>`;buf=[];}};
   spec.forEach(r=>{if(r[0]==='a'){buf.push(rowHTML(r,Sx));}else{flush();html+=rowHTML(r,Sx);}});flush();
-  const inc=!!st.inc[st.mode];
-  const bar=`<div class="incbar${inc?'':' off'}"><span>${inc?'✓ '+MODES[st.mode]+' — 차트·오더에 포함됨':MODES[st.mode]+' — 아직 포함 안 됨 (체크하면 자동 포함)'}</span>${inc?`<button class="btn sm" data-clrmode="${st.mode}">이 주호소 지우기</button>`:`<button class="btn sm" data-incmode="${st.mode}">기본값 그대로 포함</button>`}</div>`;
+  const autoF=st.mode==='fever'&&!st.inc.fever&&fvHi();const inc=!!st.inc[st.mode]||autoF;
+  const bar=autoF?`<div class="incbar"><span>✓ 발열 — 38℃ 이상 열이 있어 자동 포함됨</span></div>`:`<div class="incbar${inc?'':' off'}"><span>${inc?'✓ '+MODES[st.mode]+' — 차트·오더에 포함됨':MODES[st.mode]+' — 아직 포함 안 됨 (체크하면 자동 포함)'}</span>${inc?`<button class="btn sm" data-clrmode="${st.mode}">이 주호소 지우기</button>`:`<button class="btn sm" data-incmode="${st.mode}">기본값 그대로 포함</button>`}</div>`;
   $('inputs').innerHTML=bar+html;
-  document.querySelectorAll('#modes .chip').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.mode===st.mode);b.classList.toggle('inc',!!st.inc[b.dataset.mode]);});
+  document.querySelectorAll('#modes .chip').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.mode===st.mode);b.classList.toggle('inc',!!st.inc[b.dataset.mode]||(b.dataset.mode==='fever'&&fvHi()));});
 }
 // ---- 여러 주호소 합치기 ----
 const MORD=['resp','fever','gi','rash','uti'];
 function runAll(c){
   let ms=MORD.filter(m=>st.inc[m]);const preview=!ms.length;if(preview)ms=[st.mode];
-  // 발열 탭에 넣은 열 정보를 다른 주호소 판단에도 반영 (예: 중이염 중증도)
-  const F=ms.includes('fever')&&st.SM.fever.tmax?{t:{'38.0–38.9':'38.5–38.9','39.0–39.9':'39 이상','40 이상':'39 이상'}[st.SM.fever.tmax],d:st.SM.fever.fdays}:null;
-  const sync=(m,S)=>{if(!F||m==='fever')return S;const no=v=>!v||v==='없음';
-    if(m==='resp'&&no(S.fever)){S.fever=F.t;if(F.d)S.fdays=({'4일':'4일+','5일+':'4일+'})[F.d]||F.d;}
-    if(m==='gi'&&no(S.fever))S.fever=F.t;
-    if(m==='uti'&&!(S.sx||[]).includes('열'))S.sx=[...(S.sx||[]),'열'];
-    return S;};
-  const R=ms.map(m=>{const Sp=sync(m,prep(m,st.SM[m],c));const o=solve(m,Sp,c);return {m,Sp,o,rec:recommend(m,o,Sp)};});
+  const autoF=fvHi()&&!ms.includes('fever')&&!preview;if(autoF)ms.push('fever');
+  const R=ms.map(m=>{const Sp=prep(m,st.SM[m],c);const o=solve(m,Sp,c);return {m,Sp,o,rec:recommend(m,o,Sp)};});
   const multi=R.length>1,lab=m=>multi?MODES[m]+' · ':'',U=a=>[...new Set(a.filter(Boolean))];
   const o={alerts:U(R.flatMap(r=>r.o.alerts)),warn:U(R.flatMap(r=>r.o.warn)),dx:R.flatMap(r=>r.o.dx.map(x=>lab(r.m)+x)),
     axes:R.flatMap(r=>r.o.axes.map(([k,v])=>[lab(r.m)+k,v])),abx:U(R.flatMap(r=>r.o.abx)),avoid:U(R.flatMap(r=>r.o.avoid)),fu:U(R.flatMap(r=>r.o.fu||[])),
     A:R.map(r=>r.o.A.join(' ')).filter(Boolean).join('; '),P:U(R.flatMap(r=>r.o.P)),F:U(R.flatMap(r=>r.o.F))};
   const prim=U(R.flatMap(r=>r.rec.prim)),alt=U(R.flatMap(r=>r.rec.alt)).filter(x=>!prim.includes(x)),advice=U(R.flatMap(r=>r.rec.advice));
-  return {R,ms,preview,o,rec:{prim,alt,advice}};}
+  return {R,ms,preview,autoF,o,rec:{prim,alt,advice}};}
+document.head.insertAdjacentHTML('beforeend','<style>.cov td:first-child{white-space:nowrap;font-weight:700;width:1%}.cov td .chip{margin:2px 4px 2px 0;padding:2px 8px;font-size:12px}.cov .mu{color:var(--muted)}</style>');
 document.head.insertAdjacentHTML('beforeend','<style>#modes .chip.inc::after{content:" ✓";font-weight:700}.incbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:10px 0 4px;padding:6px 10px;border-radius:8px;background:var(--accent-weak);color:var(--accent);font-size:13px;font-weight:700}.incbar.off{background:var(--paper);color:var(--muted);font-weight:500;border:1px dashed var(--line)}.btn.sm{padding:4px 10px;font-size:12.5px;min-height:0}.incsum{font-size:12.5px;color:var(--muted);margin-bottom:6px}</style>');
+// ---- 증상별 처리: 체크한 증상마다 어떤 약이 덮는지, 없으면 왜 없는지 ----
+const avTxt=(o,re)=>o.avoid.find(x=>re.test(x));
+const axTxt=(o,k)=>{const a=o.axes.find(x=>x[0].endsWith(k));return a?a[1]:'';};
+const pndS=S=>(S.ctime||[]).some(x=>x==='눕자마자'||x==='아침 가래')||(S.rhinx||[]).includes('후비루')||(S.spux||[]).includes('아침에 많음')||(S.sx||[]).includes('뒤(후비루)에서 많이 나옴');
+const COVER=[
+ ['fever','열',S=>fvHi(),['apap','dexi'],()=>'체중을 넣으면 해열제가 계산됩니다'],
+ ['resp','콧물',S=>S.rhin&&S.rhin!=='없음',['incs','levo','keto','mute','ambro'],(o)=>avTxt(o,/항히스타민/)||'식염수 세척·흡인이 기본 (콧물 자체를 말리는 약은 근거 약함)'],
+ ['resp','코막힘',S=>(S.nose||[]).includes('코막힘'),['incs'],()=>'코막힘약(슈다페드)은 12세 미만 쓰지 않음 — 식염수·흡인'],
+ ['resp','재채기·코 가려움',S=>(S.nose||[]).some(x=>x==='재채기'||x==='가려움·코 비빔'),['levo','keto'],(o)=>avTxt(o,/항히스타민/)||'알레르기 소견(코 가려움·창백 점막) 없으면 항히스타민은 감기에 효과 없음 [G]'],
+ ['resp','기침',S=>S.cough&&S.cough!=='없음',S=>['zero','tulo','monte','pran','croup','pred','ac14','amox','azi','clr',...(pndS(S)?['incs','mute','ambro','levo']:[])],(o)=>(axTxt(o,'기침')||'')+' · 급성 기침약은 근거 약함 — 꿀(1세 이상). 밤에 잠을 깨면 “기침으로 잠 깸” 체크'],
+ ['resp','가래',S=>S.spu==='있음'||S.cough==='젖은',['mute','ambro'],(o,S,c)=>c.ageM!=null&&c.ageM<24?'2세 미만 점액용해제 쓰지 않음':(avTxt(o,/점액용해제/)||'묽은 가래 — 수분')],
+ ['resp','귀',S=>['팽륜','삼출액'].includes(S.tmr)||['팽륜','삼출액'].includes(S.tml),['ac14','amox','amoxG','cfd','cpd','cld','azi'],(o)=>o.abx.find(x=>/중이염|OME|관찰/.test(x))||'관찰'],
+ ['resp','목',S=>S.throat&&S.throat!=='정상',['amoxG','amox','ac14','cdx','azi'],()=>'바이러스 인두염 — 해열진통제'],
+ ['gi','구토',S=>S.vomit&&S.vomit!=='없음',['ond'],()=>'ORS를 5 mL씩 자주 (구토가 적으면 약 없이)'],
+ ['gi','설사',S=>S.diarr&&S.diarr!=='없음',['race','bio','lact'],()=>'ORS·식사 유지'],
+];
+function coverHTML(run,sel){
+  const rows=[];const nm=id=>(D.find(x=>x.id===id)||{}).chip||id;
+  COVER.forEach(([m,sym,on,ids0,why])=>{if(!run.ms.includes(m))return;const S=(run.R.find(r=>r.m===m)||{}).Sp;if(!S||!on(S))return;const ids=typeof ids0==='function'?ids0(S):ids0;
+    const got=ids.filter(x=>sel.includes(x)),alt=ids.filter(x=>run.rec.alt.includes(x)&&!sel.includes(x));
+    rows.push(`<tr><td>${esc(sym)}</td><td>${got.length?got.map(x=>`<b>${esc(nm(x))}</b>`).join(', '):`<span class="mu">약 없음</span> — ${esc(why(run.o,S,ctx()))}`}${alt.length?' '+alt.map(x=>`<button class="chip" data-addid="${x}">+ ${esc(nm(x))}</button>`).join(''):''}</td></tr>`);});
+  ['rash','uti'].forEach(m=>{const r=run.R.find(x=>x.m===m);if(!r)return;const got=r.rec.prim.filter(x=>sel.includes(x));rows.push(`<tr><td>${esc(MODES[m])}</td><td>${got.length?got.map(x=>`<b>${esc(nm(x))}</b>`).join(', '):'<span class="mu">약 없음</span> — 판단 참고'}</td></tr>`);});
+  return rows.length?`<h3>증상별 처리</h3><table class="ax cov">${rows.join('')}</table>`:'';}
 function render(){
   renderInputs();
   $('w').value=st.w||'';$('d').value=st.days;
@@ -1257,7 +1305,7 @@ function render(){
   const abxN=sel.filter(id=>{const d=D.find(x=>x.id===id);return d&&d.g==='항생제';}).length;
   if(abxN>=2)o.warn.unshift('항생제 '+abxN+'가지 — 한 가지로 함께 덮을 수 있는지 확인');
   // 경고
-  $('alerts').innerHTML=`<div class="incsum">${run.preview?'미리보기: '+MODES[st.mode]+' (체크하면 포함)':'포함된 주호소: '+run.ms.map(m=>MODES[m]).join(' + ')}</div>`+o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+o.warn.filter(x=>!/해열제 농도 미설정|체중이 없어|나이가 없어/.test(x)).map(x=>`<div class="warn">${esc(x)}</div>`).join('');
+  $('alerts').innerHTML=`<div class="incsum">${run.preview?'미리보기: '+MODES[st.mode]+' (체크하면 포함)':'포함된 주호소: '+run.ms.map(m=>MODES[m]+(m==='fever'&&run.autoF?'(열 자동)':'')).join(' + ')}</div>`+o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+o.warn.filter(x=>!/해열제 농도 미설정|체중이 없어|나이가 없어/.test(x)).map(x=>`<div class="warn">${esc(x)}</div>`).join('');
   // 오더
   const lines=[],pl=[];
   $('orders').innerHTML=sel.length?sel.map(id=>{const d=D.find(x=>x.id===id);const r=dose(d);const tag=`<span class="blk">${BLOCK[id]}</span>`;const isRec=rec.prim.includes(id);
@@ -1270,6 +1318,7 @@ function render(){
   }).join(''):`<div class="empty">추천 약이 없습니다. ${o.abx.length?'판단을 확인하세요.':''} 필요하면 아래 “약 직접 추가”에서 고르세요.</div>`;
   const altList=[...rec.alt.filter(x=>!sel.includes(x)),...st.rm.filter(x=>rec.prim.includes(x))];
   $('alts').innerHTML=altList.length?`<span class="hint">대안·선택:</span>`+altList.map(id=>`<button class="chip" data-addid="${id}">+ ${esc(D.find(x=>x.id===id).chip)}</button>`).join(''):'';
+  $('cover').innerHTML=coverHTML(run,sel);
   $('advice').innerHTML=rec.advice.length?`<h3>처치·안내</h3><ul>${rec.advice.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
   // EMR
   const nonDrug=o.P.filter(x=>x&&!/amox|cef|azith|clinda|clari|acetaminophen|dexibuprofen|levocetirizine|fluticasone|acetylcysteine|ambroxol|montelukast|tulobuterol|levodropropizine|prednisolone|dexamethasone|ondansetron|racecadotril|probiotic|oseltamivir|baloxavir|acyclovir|epinephrine|mupirocin|antifungal|TCS|emollient|antihistamine|lansoprazole|PPI|cefadroxil|cefixime|AH off|Low-potency|Mid-potency|FTU|Barrier/i.test(x));
@@ -1318,10 +1367,12 @@ const onClick=e=>{const b=e.target.closest('button');if(!b)return;const q=b.data
   else if(q.step){st.step=+q.step;saveCfg();}
   else if(q.addid){st.rm=st.rm.filter(x=>x!==q.addid);if(!st.add.includes(q.addid))st.add.push(q.addid);toast('추가됨');}
   else if(q.rmid){st.add=st.add.filter(x=>x!==q.rmid);if(!st.rm.includes(q.rmid))st.rm.push(q.rmid);delete st.ov[q.rmid];}
+  else if(q.fvon){st.FV.on=!st.FV.on;if(st.FV.on&&!st.FV.tmax)st.FV.tmax='38.0–38.9';}
+  else if(q.fvk){st.FV[q.fvk]=st.FV[q.fvk]===q.v&&q.fvk!=='tmax'?'':q.v;st.FV.on=true;}
   else if(q.incmode){st.inc[q.incmode]=true;}
   else if(q.clrmode){const m=q.clrmode;st.SM[m]=clone(DEF[m]);st.inc[m]=false;toast(MODES[m]+' 지움');}
   else chg=false;
-  if(chg){if(q.k||q.ak||q.sk)st.inc[st.mode]=true;if(!q.step&&!q.dq)st.example=false;render();}};
+  if(chg){if(q.k||q.ak||q.sk||q.fvon||q.fvk)st.inc[st.mode]=true;if(!q.step&&!q.dq)st.example=false;render();}};
 document.addEventListener('click',onClick);
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='w'){st.w=parseFloat(t.value)||0;st.example=false;keep(t);}
@@ -1331,7 +1382,7 @@ function keep(el){const id=el.id,ov=el.dataset.ov,p=el.selectionStart;render();c
 $('cEmr').onclick=()=>copy(LAST.emr,'EMR 차트 복사됨');
 $('cOrd').onclick=()=>copy(LAST.orders,'오더 복사됨');
 $('cAll').onclick=()=>copy(LAST.emr+'\n\n'+LAST.orders,'차트 + 오더 복사됨');
-$('newpt').onclick=()=>{st.showRx=false;Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});st.add=[];st.rm=[];st.inc={};st.ov={};st.w=0;st.age='';st.sex='';st.hx=[];st.example=false;render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
+$('newpt').onclick=()=>{st.showRx=false;Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});st.add=[];st.rm=[];st.inc={};st.ov={};st.FV={on:false,tmax:'',fdays:'',antiint:''};st.w=0;st.age='';st.sex='';st.hx=[];st.example=false;render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
 // ---- 처방 작은 창: Document Picture-in-Picture (항상 위) → 안 되면 팝업 창 ----
 let rxWin=null;
 async function toggleRxWin(){
@@ -1359,14 +1410,15 @@ function renderRxWin(){
   const det=pw.querySelector('details'),open=det?det.open:false;
   const jd=$('dx').closest('.jd');
   pw.innerHTML=`<div class="pwh"><button class="btn primary" data-pcopy="ord">오더 복사</button><button class="btn" data-pcopy="p">P&gt; 줄</button><button class="btn" data-pcopy="all">차트 전체</button></div>`+
-    $('alerts').innerHTML+`<div class="rx">${$('orders').innerHTML}</div><div class="btns" style="margin-top:8px">${$('alts').innerHTML}</div>${$('advice').innerHTML}`+
+    $('alerts').innerHTML+`<div class="rx">${$('orders').innerHTML}</div><div class="btns" style="margin-top:8px">${$('alts').innerHTML}</div>${$('cover').innerHTML}${$('advice').innerHTML}`+
     `<details${open?' open':''}><summary>판단</summary><div class="jd">${jd.innerHTML}</div></details>`;}
 window.addEventListener('pagehide',()=>{if(rxWin&&!rxWin.closed)rxWin.close();});
 // ---- 처방 가리기: 환자도 모니터를 볼 수 있으므로 처방은 기본 숨김 (EMR 차트는 표시, P> 줄만 가림) ----
 st.showRx=false;
 (function(){
+  $('alts').insertAdjacentHTML('afterend','<div id="cover" style="margin-top:10px"></div>');
   const ordHead=$('orders').previousElementSibling, jd=$('dx').closest('.jd');
-  [ordHead,$('orders'),$('alts'),$('advice'),$('alldrugs').closest('details'),$('ordtxt'),$('ordtxt').previousElementSibling,jd,jd.previousElementSibling,$('cAll'),$('cOrd')].forEach(el=>el&&el.classList.add('rx-only'));
+  [ordHead,$('orders'),$('alts'),$('cover'),$('advice'),$('alldrugs').closest('details'),$('ordtxt'),$('ordtxt').previousElementSibling,jd,jd.previousElementSibling,$('cAll'),$('cOrd')].forEach(el=>el&&el.classList.add('rx-only'));
   ordHead.insertAdjacentHTML('beforebegin','<div class="rxgate" id="rxgate"><button class="btn" id="rxToggle"></button><button class="btn" id="rxPop"></button></div>');
   $('cOrd').insertAdjacentHTML('afterend','<button class="btn rx-only" id="cP">P&gt; 줄만</button>');
   $('rxToggle').onclick=()=>{st.showRx=!st.showRx;render();};

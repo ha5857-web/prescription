@@ -177,7 +177,10 @@ function rxEngine(S, ctx){
   const course=g('course');
   const fever=g('fever')&&g('fever')!=='없음'?g('fever'):'';
   const fdays=parseInt(g('fdays'))||0;
-  const rhin=g('rhin'); const sticky=has('rhinx','끈적함'); const pnd=has('rhinx','후비루');
+  const rhin=g('rhin');
+  // 코 석션 소견 (진찰에서 직접 본 분비물)
+  const suct=g('suct')==='시행', sVis=g('sVis'), sCol=g('sCol'), sThick=suct&&(sVis==='끈적'||sVis==='덩어리'), sPnd=suct&&has('sx','뒤(후비루)에서 많이 나옴');
+  const sticky=has('rhinx','끈적함')||sThick; const pnd=has('rhinx','후비루')||sPnd;
   const uniFoul=has('rhinx','한쪽만 악취');
   const muc=g('muc');
   const cough=g('cough')&&g('cough')!=='없음'?g('cough'):'';
@@ -188,7 +191,7 @@ function rxEngine(S, ctx){
   const hx=(ctx.hx||'');
   const allergyBg=muc==='창백·물컹'||has('nose','가려움·코 비빔')||/알레르기비염|비염 가족력|아토피|천식/.test(hx);
   const allergyPattern=muc==='창백·물컹'||(has('nose','재채기')&&has('nose','가려움·코 비빔'));
-  const thick=sticky||(rhin==='노랑·초록'&&(day||0)>=4)||cough==='젖은';
+  const thick=sticky||((rhin==='노랑·초록'||(suct&&sCol==='노랑·초록'))&&(day||0)>=4)||cough==='젖은';
   const sev=S.sev||[];
 
   // ---- 중증 소견 ----
@@ -233,7 +236,9 @@ function rxEngine(S, ctx){
     if(postnasal)t.push('후비루형(원인: 코)');if(hyper)t.push('기도과민형(원인: 기도)');if(reflux)t.push('역류형(원인: 위)');
     ax3=`${cough} 기침${cdur?' · '+cdur:''} → ${t.length?t.join(', '):'표현형 미분류 — 기침 시점 확인'}`;}
   out.axes.push(['축3 기침',ax3]);
-  out.axes.push(['축4 점도',thick?'끈적함 → 점액용해제 고려 (2세 이상)':(rhin==='맑음'?'묽음 → 점액용해제 불필요':'—')]);
+  out.axes.push(['축4 점도',(thick?'끈적함 → 점액용해제 고려 (2세 이상)':((rhin==='맑음'||(suct&&sVis==='묽음'))?'묽음 → 점액용해제 불필요':'—'))+(suct?` · 석션: ${[g('sAmt'),sCol,sVis].filter(Boolean).join(' ')||'시행'}${sPnd?', 후비루 흡인 많음':''}`:'')]);
+  if(suct&&has('sx','한쪽만')&&sCol==='노랑·초록')out.warn.push('석션: 한쪽만 화농성 분비물 — 코 이물·한쪽 부비동염 확인');
+  if(suct&&sCol==='피 섞임')out.warn.push('석션: 피 섞임 — 대개 점막 자극, 반복되면 흡인 압력 낮추고 보습');
 
   // ---- 연령 공통 경고 ----
   if(lt(24)) out.warn.push('2세 미만: 진해제·점액용해제·충혈완화제·시네츄라·아바비스·몬테루카스트 츄정 쓰지 않음. 해열제·식염수·수분이 기본.');
@@ -344,6 +349,7 @@ function rxEngine(S, ctx){
     if(!ac||!dx) out.warn.push('해열제 농도 미설정 — 설정에서 입력하면 mL가 계산됩니다.');
   }
   order('생리식염수 코 세척/분무, 수분 충분히','NS nasal irrigation, fluids');
+  if(suct&&has('sx','석션 후 코막힘 좋아짐'))order('집에서도 식염수 분무 후 콧물 흡입기로 흡인 (석션 후 코막힘 호전 확인됨)','Home NS + nasal aspiration (improved after suction)');
 
   // 항히스타민
   const levoc=()=>{if(lt(12))return null;if(lt(24))return ['잘티진액 1.25 mg = 2.5 mL 하루 1회','Levocetirizine 1.25 mg qd'];if(lt(72))return ['잘티진액 1.25 mg = 2.5 mL 하루 2회','Levocetirizine 1.25 mg bid'];return ['잘티진액 5 mg = 10 mL 하루 1회','Levocetirizine 5 mg qd'];};
@@ -843,7 +849,7 @@ const HXC={'알레르기비염':'AR','아토피피부염':'AD','천식':'BA','�
 function partsV2(mode,S,c){
   const g=k=>S[k]||'',has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v,pm=b=>b?'+':'-';
   const cur=[],prev=[],etc=[];
-  const pe={fever:false,C:false,Sp:false,R:false,sn:false,st:false,N:false,V:false,D:false,oral:false,urin:false,cond:false,drowsy:false,ln:false,nose:'IT n  bog-  MM-',abd:false,reb:false,br:'clear',ti:false,tx:'',tmr:'N',tml:'N',skin:''};
+  const pe={suct:'',fever:false,C:false,Sp:false,R:false,sn:false,st:false,N:false,V:false,D:false,oral:false,urin:false,cond:false,drowsy:false,ln:false,nose:'IT n  bog-  MM-',abd:false,reb:false,br:'clear',ti:false,tx:'',tmr:'N',tml:'N',skin:''};
   const fevCode=(f,d)=>f&&f!=='없음'?`F${d?d.replace('일','').replace('+','+')+'d':''} ${f.replace('39 이상','39+').replace('–','-')}`.trim():'F-';
   const crs={'좋아지는 중':'I','그대로':'S','좋아지다 다시 나빠짐':'R'};
   if(mode==='resp'){
@@ -864,6 +870,7 @@ function partsV2(mode,S,c){
     if(g('radt')&&g('radt')!=='안 함')etc.push(`RADT ${g('radt')==='양성'?'+':'-'}`);
     pe.fever=nz2(g('fever'));pe.C=!!cc;pe.Sp=cc==='w'||ct.includes('A');pe.R=!!rc;pe.sn=has('nose','재채기');pe.st=has('nose','코막힘');
     pe.nose=({'정상':'IT n  bog-  MM-','창백·물컹':'IT p  bog+  MM-','선홍·부종':'IT r  bog-  MM-','중비도 고름':'IT r  bog-  MM+','비후(색 정상)':'IT h  bog-  MM-'})[g('muc')]||'IT n  bog-  MM-';
+    if(g('suct')==='시행'){const sx=S.sx||[];pe.suct='Suct: '+[({'적음':'+','보통':'++','많음':'+++'})[g('sAmt')]||'+',({'맑음':'c','흰 점액':'m','노랑·초록':'y','피 섞임':'bl'})[g('sCol')]||'',({'묽음':'thin','끈적':'s','덩어리':'plug'})[g('sVis')]||'',sx.includes('뒤(후비루)에서 많이 나옴')?'pnd':'',sx.includes('한쪽만')?'uni':'',sx.includes('석션 후 코막힘 좋아짐')?'obst↓':''].filter(Boolean).join(' ');}
     const tm={'정상':'N','발적만':'E','팽륜':'B','삼출액':'OME'};pe.tmr=tm[g('tmr')]||'N';pe.tml=tm[g('tml')]||'N';
     pe.ti=g('throat')==='발적'||g('throat')==='삼출물';pe.tx=g('throat')==='삼출물'?' (ex)':'';pe.ln=g('ln')==='앞목 압통';
     const lu=(S.lung||[]).filter(x=>x!=='clear').map(x=>({'천명':'wh','국소 수포음':'cr','흉곽 함몰':'ret'})[x]);if(lu.length)pe.br=lu.join(', ');
@@ -920,7 +927,7 @@ function partsV2(mode,S,c){
   return {cur,prev,etc,pe};
 }
 // 여러 주호소 → 한 장의 차트
-const PE_DEF={nose:'IT n  bog-  MM-',br:'clear',tx:'',tmr:'N',tml:'N',skin:''};
+const PE_DEF={suct:'',nose:'IT n  bog-  MM-',br:'clear',tx:'',tmr:'N',tml:'N',skin:''};
 function assembleV2(P,c){
   const pm=b=>b?'+':'-';
   const ORD=['resp','fever','gi','rash','uti'];
@@ -940,7 +947,7 @@ function assembleV2(P,c){
   const L=['[현 증상]',...cur,'','[이전 투약]',...prev,'','[기타]',`BW ${c.wt}kg  Hx ${hx}${etc.length?'  '+etc.join('  '):''}`,'',
   '[신체 진찰]',`Fever ${pm(pe.fever)}`,`C/S/R ${pm(pe.C)}/${pm(pe.Sp)}/${pm(pe.R)}  sn/stuff ${pm(pe.sn)}/${pm(pe.st)}  N ${pm(pe.N)} / V ${pm(pe.V)} / D ${pm(pe.D)}`,
   'Headache -  Dizziness -',`oral/urination/condition ${pe.oral?'dec':'-'}/${pe.urin?'dec':'-'}/${pe.cond?'dec':'-'}`,`Mental: ${pe.drowsy?'Drowsy':'Alert'}  Pupil: Equal & Reactive`,`C-LN: ${pm(pe.ln)}`,
-  `Nose: ${pe.nose}`,...(pe.skin?[pe.skin]:[]),`abd pain: ${pm(pe.abd)}  rebound Td: ${pm(pe.reb)}`,'NABS, RHB, s m, murmur-',`breathing: ${pe.br}`,
+  `Nose: ${pe.nose}`,...(pe.suct?[pe.suct]:[]),...(pe.skin?[pe.skin]:[]),`abd pain: ${pm(pe.abd)}  rebound Td: ${pm(pe.reb)}`,'NABS, RHB, s m, murmur-',`breathing: ${pe.br}`,
   `throat inj Rt ${pm(pe.ti)}/Lt ${pm(pe.ti)}${pe.tx}  PTH Rt -/Lt -`,`TM Rt ${pe.tmr}  Lt ${pe.tml}`];
   return L.join('\n');
 }
@@ -1055,6 +1062,7 @@ resp:[
  ['a','flags','최근 30일 내 항생제','최근 30일 내 항생제'],
  ['sec','진찰 (이상만 고르기 — 기본값 정상)'],
  ['c','muc','코 점막',['안 봄','정상','창백·물컹','선홍·부종','중비도 고름','비후(색 정상)']],
+ ['s','suct','코 석션','시행','안 함',[['c','sAmt','양',['적음','보통','많음']],['c','sCol','색',['맑음','흰 점액','노랑·초록','피 섞임']],['c','sVis','점도',['묽음','끈적','덩어리']],['c','sx','특징',['뒤(후비루)에서 많이 나옴','한쪽만','석션 후 코막힘 좋아짐'],1]],['sAmt','sCol','sVis','sx']],
  ['s','throat','인후 발적','발적','정상',[['c','throat','인후',['발적','삼출물']],['c','radt','RADT',['안 함','양성','음성']]],['radt']],
  ['s','ln','앞목 림프절 압통','앞목 압통','없음',[]],
  ['c','tmr','TM Rt',['정상','발적만','팽륜','삼출액']],
@@ -1133,7 +1141,7 @@ uti:[
  ['sec','중증 소견'],['c','sev','',['처짐·기면','탈수','호흡곤란·함몰'],1]]
 };
 const DEF={
- resp:{visit:'초진',day:'',course:'그대로',fever:'없음',rhin:'없음',rhinx:[],nose:[],cough:'없음',ctime:[],abx:'없음',flags:[],muc:'안 봄',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],sev:[]},
+ resp:{visit:'초진',day:'',course:'그대로',fever:'없음',rhin:'없음',suct:'안 함',sAmt:'',sCol:'',sVis:'',sx:[],rhinx:[],nose:[],cough:'없음',ctime:[],abx:'없음',flags:[],muc:'안 봄',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],sev:[]},
  gi:{_dayc:'',vomit:'없음',diarr:'없음',color:[],fever:'없음',pain:'없음',abdtd:'없음',flags:[],look:'정상',eyes:'정상',muc:'촉촉',tears:'있음',lastvoid:'6시간 이내',ors:'안 해봄',contact:[],sev:[]},
  fever:{fdays:'',tmax:'',after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:[],ua:'안 함',vacc:'완료',seizure:'없음',flu:'해당 없음',chronic:[],kawa:[],sev:[]},
  rash:{_dayc:'',order:'열 없음',shape:[],move:'',site:[],itch:'없음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],mouth:[],sev:[]},

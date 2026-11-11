@@ -840,7 +840,7 @@ function buildEMR2(e,ctx,o,S){
 
 // ---------- EMR 양식 v2 렌더 ----------
 const HXC={'알레르기비염':'AR','아토피피부염':'AD','천식':'BA','비염 가족력':'FHx-AR','반복 중이염':'rOM'};
-function renderV2(mode,S,c){
+function partsV2(mode,S,c){
   const g=k=>S[k]||'',has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v,pm=b=>b?'+':'-';
   const cur=[],prev=[],etc=[];
   const pe={fever:false,C:false,Sp:false,R:false,sn:false,st:false,N:false,V:false,D:false,oral:false,urin:false,cond:false,drowsy:false,ln:false,nose:'IT n  bog-  MM-',abd:false,reb:false,br:'clear',ti:false,tx:'',tmr:'N',tml:'N',skin:''};
@@ -917,6 +917,25 @@ function renderV2(mode,S,c){
     pe.fever=fev&&!(g('afeb')==='해열됨');pe.oral=pe.cond=pe.V=g('appear')==='아파 보임·못 먹음/토함';
   }
   const sev=(S.sev||[]);if(sev.length)cur.push('! '+sev.map(x=>({'귀 뒤 부종':'postauricular swelling','처짐·기면':'lethargy','호흡곤란·함몰':'resp distress','탈수':'dehydration'})[x]||x).join(', '));
+  return {cur,prev,etc,pe};
+}
+// 여러 주호소 → 한 장의 차트
+const PE_DEF={nose:'IT n  bog-  MM-',br:'clear',tx:'',tmr:'N',tml:'N',skin:''};
+function assembleV2(P,c){
+  const pm=b=>b?'+':'-';
+  const ORD=['resp','fever','gi','rash','uti'];
+  P=[...P].sort((a,b)=>ORD.indexOf(a.mode)-ORD.indexOf(b.mode));
+  const f=(p,i)=>(p.cur[0]||'').split('  ')[i]||'';
+  const head=(P[0].cur[0]||'').split('  ');
+  if(/^D_/.test(head[0]||'')){const o=P.find(p=>!/^D_/.test(f(p,0)));if(o)head[0]=f(o,0);}
+  if(/^F-/.test(head[1]||'')){const o=P.find(p=>f(p,1)&&!/^F-/.test(f(p,1)));if(o)head[1]=f(o,1);}
+  const rcP=P.find(p=>p.mode==='resp')||P.find(p=>p.mode==='fever');
+  const cur=[head.join('  '),rcP?rcP.cur[1]:'R-  C-'];
+  P.forEach(p=>p.cur.slice(2).forEach(l=>{if(l&&!cur.includes(l))cur.push(l);}));
+  const pa=P.flatMap(p=>p.prev);const prev=[pa.find(x=>!/^Abx-/.test(x))||pa[0]||'Abx-  cx ok'];
+  const etc=[...new Set(P.flatMap(p=>p.etc))].filter(Boolean);
+  const pe={};Object.keys(P[0].pe).forEach(k=>{const v=P.map(p=>p.pe[k]);
+    if(typeof v[0]==='boolean')pe[k]=v.some(Boolean);else{const nd=v.find(x=>x!==PE_DEF[k]&&x!=null&&x!==false);pe[k]=nd??(PE_DEF[k]??v[0]);}});
   const hx=c.hx?c.hx.split(', ').map(x=>HXC[x]||x).join(','):'-';
   const L=['[현 증상]',...cur,'','[이전 투약]',...prev,'','[기타]',`BW ${c.wt}kg  Hx ${hx}${etc.length?'  '+etc.join('  '):''}`,'',
   '[신체 진찰]',`Fever ${pm(pe.fever)}`,`C/S/R ${pm(pe.C)}/${pm(pe.Sp)}/${pm(pe.R)}  sn/stuff ${pm(pe.sn)}/${pm(pe.st)}  N ${pm(pe.N)} / V ${pm(pe.V)} / D ${pm(pe.D)}`,
@@ -925,6 +944,7 @@ function renderV2(mode,S,c){
   `throat inj Rt ${pm(pe.ti)}/Lt ${pm(pe.ti)}${pe.tx}  PTH Rt -/Lt -`,`TM Rt ${pe.tmr}  Lt ${pe.tml}`];
   return L.join('\n');
 }
+function renderV2(mode,S,c){return assembleV2([{mode,...partsV2(mode,S,c)}],c);}
 function nz2(v){return !!v&&v!=='없음';}
 function solve(mode,S,c){
   if(mode==='resp')return rxEngine(S,c);
@@ -1121,9 +1141,9 @@ const DEF={
 };
 const MODES={resp:'감기·호흡기',gi:'구토·설사',fever:'발열',rash:'발진',uti:'소변'};
 const clone=o=>JSON.parse(JSON.stringify(o));
-let st={mode:'resp',w:15,age:'3세',sex:'',hx:[],days:3,SM:{},add:{},rm:{},ov:{},step:0.1,
+let st={mode:'resp',w:15,age:'3세',sex:'',hx:[],days:3,SM:{},add:[],rm:[],ov:{},inc:{resp:true},step:0.1,
   conc:{...CONC_DEF},stock:{amox:false,clinda:false,dexa:false},example:true};
-Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);st.add[m]=[];st.rm[m]=[];});
+Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});
 try{const s=JSON.parse(localStorage.getItem('rxuni_cfg')||'{}');if(s.conc)st.conc={...st.conc,...s.conc};if(s.stock)st.stock={...st.stock,...s.stock};if(s.step)st.step=s.step;if(s.days)st.days=s.days;}catch(e){}
 const saveCfg=()=>{try{localStorage.setItem('rxuni_cfg',JSON.stringify({conc:st.conc,stock:st.stock,step:st.step,days:st.days}))}catch(e){}};
 // 예시 증례: 15 kg 3세, 후비루형 기침 D6
@@ -1174,7 +1194,7 @@ const dayTot=c=>typeof c.amt==='number'?Math.round(c.amt*c.times*100)/100:c.amt;
 const ordStr=c=>`${fmt(dayTot(c))}${c.unit}/${c.times}/${c.days}`;
 // ---- 렌더 ----
 let LAST={emr:'',orders:''};
-function selected(rec){const m=st.mode;const set=new Set([...rec.prim,...st.add[m]]);st.rm[m].forEach(x=>set.delete(x));
+function selected(rec){const set=new Set([...rec.prim,...st.add]);st.rm.forEach(x=>set.delete(x));
   return [...set].sort((x,y)=>BORD.indexOf(BLOCK[x])-BORD.indexOf(BLOCK[y]));}
 function rowHTML(r,Sx){
   const t=r[0];
@@ -1189,9 +1209,30 @@ function renderInputs(){
   const Sx=S();const spec=SPEC[st.mode];let html='',buf=[];
   const flush=()=>{if(buf.length){html+=`<div class="ckgrid">${buf.join('')}</div>`;buf=[];}};
   spec.forEach(r=>{if(r[0]==='a'){buf.push(rowHTML(r,Sx));}else{flush();html+=rowHTML(r,Sx);}});flush();
-  $('inputs').innerHTML=html;
-  document.querySelectorAll('#modes .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===st.mode));
+  const inc=!!st.inc[st.mode];
+  const bar=`<div class="incbar${inc?'':' off'}"><span>${inc?'✓ '+MODES[st.mode]+' — 차트·오더에 포함됨':MODES[st.mode]+' — 아직 포함 안 됨 (체크하면 자동 포함)'}</span>${inc?`<button class="btn sm" data-clrmode="${st.mode}">이 주호소 지우기</button>`:`<button class="btn sm" data-incmode="${st.mode}">기본값 그대로 포함</button>`}</div>`;
+  $('inputs').innerHTML=bar+html;
+  document.querySelectorAll('#modes .chip').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.mode===st.mode);b.classList.toggle('inc',!!st.inc[b.dataset.mode]);});
 }
+// ---- 여러 주호소 합치기 ----
+const MORD=['resp','fever','gi','rash','uti'];
+function runAll(c){
+  let ms=MORD.filter(m=>st.inc[m]);const preview=!ms.length;if(preview)ms=[st.mode];
+  // 발열 탭에 넣은 열 정보를 다른 주호소 판단에도 반영 (예: 중이염 중증도)
+  const F=ms.includes('fever')&&st.SM.fever.tmax?{t:{'38.0–38.9':'38.5–38.9','39.0–39.9':'39 이상','40 이상':'39 이상'}[st.SM.fever.tmax],d:st.SM.fever.fdays}:null;
+  const sync=(m,S)=>{if(!F||m==='fever')return S;const no=v=>!v||v==='없음';
+    if(m==='resp'&&no(S.fever)){S.fever=F.t;if(F.d)S.fdays=({'4일':'4일+','5일+':'4일+'})[F.d]||F.d;}
+    if(m==='gi'&&no(S.fever))S.fever=F.t;
+    if(m==='uti'&&!(S.sx||[]).includes('열'))S.sx=[...(S.sx||[]),'열'];
+    return S;};
+  const R=ms.map(m=>{const Sp=sync(m,prep(m,st.SM[m],c));const o=solve(m,Sp,c);return {m,Sp,o,rec:recommend(m,o,Sp)};});
+  const multi=R.length>1,lab=m=>multi?MODES[m]+' · ':'',U=a=>[...new Set(a.filter(Boolean))];
+  const o={alerts:U(R.flatMap(r=>r.o.alerts)),warn:U(R.flatMap(r=>r.o.warn)),dx:R.flatMap(r=>r.o.dx.map(x=>lab(r.m)+x)),
+    axes:R.flatMap(r=>r.o.axes.map(([k,v])=>[lab(r.m)+k,v])),abx:U(R.flatMap(r=>r.o.abx)),avoid:U(R.flatMap(r=>r.o.avoid)),fu:U(R.flatMap(r=>r.o.fu||[])),
+    A:R.map(r=>r.o.A.join(' ')).filter(Boolean).join('; '),P:U(R.flatMap(r=>r.o.P)),F:U(R.flatMap(r=>r.o.F))};
+  const prim=U(R.flatMap(r=>r.rec.prim)),alt=U(R.flatMap(r=>r.rec.alt)).filter(x=>!prim.includes(x)),advice=U(R.flatMap(r=>r.rec.advice));
+  return {R,ms,preview,o,rec:{prim,alt,advice}};}
+document.head.insertAdjacentHTML('beforeend','<style>#modes .chip.inc::after{content:" ✓";font-weight:700}.incbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:10px 0 4px;padding:6px 10px;border-radius:8px;background:var(--accent-weak);color:var(--accent);font-size:13px;font-weight:700}.incbar.off{background:var(--paper);color:var(--muted);font-weight:500;border:1px dashed var(--line)}.btn.sm{padding:4px 10px;font-size:12.5px;min-height:0}.incsum{font-size:12.5px;color:var(--muted);margin-bottom:6px}</style>');
 function render(){
   renderInputs();
   $('w').value=st.w||'';$('d').value=st.days;
@@ -1202,11 +1243,13 @@ function render(){
   document.querySelectorAll('[data-dq]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.dq===st.days));
   document.querySelectorAll('[data-step]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.step===st.step));
   $('ex').hidden=!st.example;
-  const c=ctx(),Sp=prep(st.mode,S(),c);let o;
-  try{o=solve(st.mode,Sp,c);}catch(e){$('alerts').innerHTML=`<div class="alert">계산 오류: ${esc(e.message)}</div>`;console.error(e);return;}
-  const rec=recommend(st.mode,o,Sp);const sel=selected(rec);
+  const c=ctx();let run;
+  try{run=runAll(c);}catch(e){$('alerts').innerHTML=`<div class="alert">계산 오류: ${esc(e.message)}</div>`;console.error(e);return;}
+  const {o,rec}=run;const sel=selected(rec);
+  const abxN=sel.filter(id=>{const d=D.find(x=>x.id===id);return d&&d.g==='항생제';}).length;
+  if(abxN>=2)o.warn.unshift('항생제 '+abxN+'가지 — 한 가지로 함께 덮을 수 있는지 확인');
   // 경고
-  $('alerts').innerHTML=o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+o.warn.filter(x=>!/해열제 농도 미설정|체중이 없어|나이가 없어/.test(x)).map(x=>`<div class="warn">${esc(x)}</div>`).join('');
+  $('alerts').innerHTML=`<div class="incsum">${run.preview?'미리보기: '+MODES[st.mode]+' (체크하면 포함)':'포함된 주호소: '+run.ms.map(m=>MODES[m]).join(' + ')}</div>`+o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+o.warn.filter(x=>!/해열제 농도 미설정|체중이 없어|나이가 없어/.test(x)).map(x=>`<div class="warn">${esc(x)}</div>`).join('');
   // 오더
   const lines=[],pl=[];
   $('orders').innerHTML=sel.length?sel.map(id=>{const d=D.find(x=>x.id===id);const r=dose(d);const tag=`<span class="blk">${BLOCK[id]}</span>`;const isRec=rec.prim.includes(id);
@@ -1217,12 +1260,12 @@ function render(){
     const subT=[per,mgT,r.note].filter(Boolean).join(' · ');
     return `<div class="ln">${tag}<div class="nm">${esc(d.name)}${isRec?'':' <span class="me">직접 추가</span>'}</div><div class="val">${esc(s)}</div><div class="sub">${esc(subT)}</div>${r.warn.map(x=>`<div class="w">${esc(x)}</div>`).join('')}<div class="ctl">일수 <input data-ov="${id}" value="${r.days}" inputmode="numeric" aria-label="${esc(d.name)} 일수">${r.fixed?'<span>고정</span>':''}${r.daysHint&&r.days<r.daysHint?`<span>보통 ${r.daysHint}일 이상</span>`:''}<button class="x" data-rmid="${id}">빼기 ×</button></div></div>`;
   }).join(''):`<div class="empty">추천 약이 없습니다. ${o.abx.length?'판단을 확인하세요.':''} 필요하면 아래 “약 직접 추가”에서 고르세요.</div>`;
-  const altList=[...rec.alt.filter(x=>!sel.includes(x)),...st.rm[st.mode].filter(x=>rec.prim.includes(x))];
+  const altList=[...rec.alt.filter(x=>!sel.includes(x)),...st.rm.filter(x=>rec.prim.includes(x))];
   $('alts').innerHTML=altList.length?`<span class="hint">대안·선택:</span>`+altList.map(id=>`<button class="chip" data-addid="${id}">+ ${esc(D.find(x=>x.id===id).chip)}</button>`).join(''):'';
   $('advice').innerHTML=rec.advice.length?`<h3>처치·안내</h3><ul>${rec.advice.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
   // EMR
   const nonDrug=o.P.filter(x=>x&&!/amox|cef|azith|clinda|clari|acetaminophen|dexibuprofen|levocetirizine|fluticasone|acetylcysteine|ambroxol|montelukast|tulobuterol|levodropropizine|prednisolone|dexamethasone|ondansetron|racecadotril|probiotic|oseltamivir|baloxavir|acyclovir|epinephrine|mupirocin|antifungal|TCS|emollient|antihistamine|lansoprazole|PPI|cefadroxil|cefixime|AH off|Low-potency|Mid-potency|FTU|Barrier/i.test(x));
-  const chart=renderV2(st.mode,Sp,c)+'\n\n[평가 및 계획]\nA> '+(o.A.join(' ')||'-')+'\nP> '+([...pl,...nonDrug].join('\n   ')||'-')+'\nF/U> '+(o.F.join(' ')||'-');
+  const chart=assembleV2(run.R.map(r=>({mode:r.m,...partsV2(r.m,r.Sp,c)})),c)+'\n\n[평가 및 계획]\nA> '+(o.A||'-')+'\nP> '+([...pl,...nonDrug].join('\n   ')||'-')+'\nF/U> '+(o.F.join(' ')||'-');
   LAST={emr:chart,orders:lines.join('\n')};
   $('emr').textContent=chart;$('ordtxt').textContent=LAST.orders||'—';
   // 판단
@@ -1260,10 +1303,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   else if(q.hx){st.hx=st.hx.includes(q.hx)?st.hx.filter(x=>x!==q.hx):[...st.hx,q.hx];}
   else if(q.dq){st.days=+q.dq;saveCfg();}
   else if(q.step){st.step=+q.step;saveCfg();}
-  else if(q.addid){const m=st.mode;st.rm[m]=st.rm[m].filter(x=>x!==q.addid);if(!st.add[m].includes(q.addid))st.add[m].push(q.addid);toast('추가됨');}
-  else if(q.rmid){const m=st.mode;st.add[m]=st.add[m].filter(x=>x!==q.rmid);if(!st.rm[m].includes(q.rmid))st.rm[m].push(q.rmid);delete st.ov[q.rmid];}
+  else if(q.addid){st.rm=st.rm.filter(x=>x!==q.addid);if(!st.add.includes(q.addid))st.add.push(q.addid);toast('추가됨');}
+  else if(q.rmid){st.add=st.add.filter(x=>x!==q.rmid);if(!st.rm.includes(q.rmid))st.rm.push(q.rmid);delete st.ov[q.rmid];}
+  else if(q.incmode){st.inc[q.incmode]=true;}
+  else if(q.clrmode){const m=q.clrmode;st.SM[m]=clone(DEF[m]);st.inc[m]=false;toast(MODES[m]+' 지움');}
   else chg=false;
-  if(chg){if(!q.step&&!q.dq)st.example=false;render();}});
+  if(chg){if(q.k||q.ak||q.sk)st.inc[st.mode]=true;if(!q.step&&!q.dq)st.example=false;render();}});
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='w'){st.w=parseFloat(t.value)||0;st.example=false;keep(t);}
   else if(t.id==='d'){const v=parseInt(t.value);if(v>0){st.days=v;saveCfg();keep(t);}}
@@ -1272,7 +1317,7 @@ function keep(el){const id=el.id,ov=el.dataset.ov,p=el.selectionStart;render();c
 $('cEmr').onclick=()=>copy(LAST.emr,'EMR 차트 복사됨');
 $('cOrd').onclick=()=>copy(LAST.orders,'오더 복사됨');
 $('cAll').onclick=()=>copy(LAST.emr+'\n\n'+LAST.orders,'차트 + 오더 복사됨');
-$('newpt').onclick=()=>{Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);st.add[m]=[];st.rm[m]=[];});st.ov={};st.w=0;st.age='';st.sex='';st.hx=[];st.example=false;render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
+$('newpt').onclick=()=>{Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});st.add=[];st.rm=[];st.inc={};st.ov={};st.w=0;st.age='';st.sex='';st.hx=[];st.example=false;render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
 buildStatic();render();
 
 </script>

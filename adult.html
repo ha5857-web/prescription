@@ -845,10 +845,11 @@ const ENG={resp:eResp,gerd:eGerd,gi:eGi,pain:ePain,uti:eUti,skin:eSkin};
 // ===== 성인 EMR 차트 (양식 v2 성인판) =====
 const HXA={'간질환':'LD','위궤양·출혈 병력':'PUD/GIB','심혈관질환':'CVD','고혈압':'HTN','당뇨':'DM','천식·COPD':'BA/COPD','전립선비대':'BPH','녹내장':'Glaucoma','면역저하':'IC'};
 const RXA={'항응고·항혈소판':'anticoag/APT','ACE억제제 복용':'ACEi','클로피도그렐 복용':'clopidogrel','스타틴 복용':'statin'};
-function renderA(mode,S,c,o,flags){
+const PEA_DEF={vs:'V/S: BP _/_  HR _  BT _  SpO2 _%',gen:'General: not ill-looking',throat:'inj -  exud -',cln:'-',nose:'IT n  MM-',sinus:'-',chest:'clear',abd:'soft, Td -  rebound -',cvat:'-',skin:'-',neuro:'grossly intact'};
+function partsA(mode,S,c,o){
   const g=k=>S[k]||'',has=(k,v)=>Array.isArray(S[k])?S[k].includes(v):S[k]===v,pm=b=>b?'+':'-',arr=k=>S[k]||[];
   const cur=[],prev=[],etc=[];
-  const pe={vs:'V/S: BP _/_  HR _  BT _  SpO2 _%',gen:'General: not ill-looking',throat:'inj -  exud -',cln:'-',nose:'IT n  MM-',sinus:'-',chest:'clear',abd:'soft, Td -  rebound -',cvat:'-',skin:'-',neuro:'grossly intact',extra:[]};
+  const pe={...PEA_DEF,extra:[]};
   const crs={'좋아지는 중':'I','그대로':'S','좋아지다 다시 나빠짐':'R'};
   const fc=v=>v&&v!=='없음'?'F '+v.replace('39 이상','39+').replace('–','-'):'F-';
   const ax=k=>{const a=(o.axes||[]).find(x=>x[0]===k);return a?a[1]:''};
@@ -939,6 +940,25 @@ function renderA(mode,S,c,o,flags){
     const sk=[];if(g('urt')==='있음')sk.push('wheals'+(has('ux','혈관부종')?' + angioedema':''));if(g('hz')==='있음')sk.push('grouped vesicles, dermatomal');if(g('ecz')==='있음')sk.push('eczematous patches'+(has('einf','2차 감염')?' + crust':''));if(sk.length)pe.skin=sk.join('; ');
     if(ana.includes('숨참·쌕쌕'))pe.chest='wheeze';
   }
+  return {mode,cur,prev,etc,pe};
+}
+// 여러 주호소 → 한 장의 차트
+function assembleA(P,c,flags){
+  const pm=b=>b?'+':'-';
+  const ORD=['resp','gi','gerd','pain','uti','skin'];
+  P=[...P].sort((a,b)=>ORD.indexOf(a.mode)-ORD.indexOf(b.mode));
+  const cur=[];const rs=P.find(p=>p.mode==='resp'),gi=P.find(p=>p.mode==='gi');
+  P.forEach(p=>{let lines=p.cur;
+    if(p===gi&&rs){const h=rs.cur[0].split('  '),gh=gi.cur[0].split('  ');
+      if(/^D_/.test(h[0]||'')&&!/^D_/.test(gh[0]||''))h[0]=gh[0];if(/^F-/.test(h[1]||'')&&gh[1]&&!/^F-/.test(gh[1]))h[1]=gh[1];
+      cur[0]=h.join('  ');lines=lines.slice(1);}
+    lines.forEach(l=>{if(l&&!cur.includes(l))cur.push(l);});});
+  let prev=[...new Set(P.flatMap(p=>p.prev))].filter(x=>x!=='-');
+  if(prev.some(x=>/^Abx [A-Z]/.test(x)))prev=prev.filter(x=>x!=='Abx-');
+  if(!prev.length)prev=['-'];
+  const etc=[...new Set(P.flatMap(p=>p.etc))].filter(Boolean);
+  const pe={};Object.keys(PEA_DEF).forEach(k=>{const nd=P.map(p=>p.pe[k]).find(v=>v&&v!==PEA_DEF[k]);pe[k]=nd||PEA_DEF[k];});
+  pe.extra=[...new Set(P.flatMap(p=>p.pe.extra||[]))];
   const hx=flags.filter(f=>HXA[f]).map(f=>HXA[f]), rxm=flags.filter(f=>RXA[f]).map(f=>RXA[f]);
   const sexC=c.sex==='남'?'M':c.sex==='여'?'F':'_';
   const L=['[현 증상]',...cur,'','[이전 투약]',...prev,'','[기타]',
@@ -947,6 +967,7 @@ function renderA(mode,S,c,o,flags){
     '[신체 진찰]',pe.vs,pe.gen,`Throat: ${pe.throat}   C-LN: ${pe.cln}`,`Nose: ${pe.nose}   Sinus Td: ${pe.sinus}`,`Chest: ${pe.chest}`,`Abd: ${pe.abd}   CVAT: ${pe.cvat}`,`Skin: ${pe.skin}`,`Neuro: ${pe.neuro}`,...pe.extra];
   return L.join('\n');
 }
+function renderA(mode,S,c,o,flags){return assembleA([partsA(mode,S,c,o)],c,flags);}
 // ===== 고찰: 성인 다빈도 질환 =====
 // ex.rx: [id, override] — 처방 예시는 약 DB로 계산 (차팅 탭과 같은 숫자)
 const GOJ_INTRO={
@@ -1070,8 +1091,8 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const fmt=x=>typeof x==='number'?String(Math.round(x*100)/100):x;
-let st={tab:'chart',mode:'gerd',age:45,sex:'남',wt:'',renal:'정상',flags:[],days:3,SM:{},add:{},rm:{},ov:{},cfg:{acid:'PPI',amox:false},example:true,gm:'all'};
-Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);st.add[m]=[];st.rm[m]=[];});
+let st={tab:'chart',mode:'gerd',age:45,sex:'남',wt:'',renal:'정상',flags:[],days:3,SM:{},add:[],rm:[],ov:{},inc:{gerd:true},cfg:{acid:'PPI',amox:false},example:true,gm:'all'};
+Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});
 try{const s=JSON.parse(localStorage.getItem('rxadult_cfg')||'{}');if(s.cfg)st.cfg={...st.cfg,...s.cfg};if(s.days)st.days=s.days;}catch(e){}
 const saveCfg=()=>{try{localStorage.setItem('rxadult_cfg',JSON.stringify({cfg:st.cfg,days:st.days}))}catch(e){}};
 // 예시: 45세 남, 속쓰림·역류 밤에 악화, 내시경 정상
@@ -1105,8 +1126,10 @@ function rowHTML(r,Sx){const t=r[0];
   return '';}
 function renderInputs(){const Sx=S();let html='',buf=[];const flush=()=>{if(buf.length){html+=`<div class="ckgrid">${buf.join('')}</div>`;buf=[];}};
   SPEC[st.mode].forEach(r=>{if(r[0]==='a')buf.push(rowHTML(r,Sx));else{flush();html+=rowHTML(r,Sx);}});flush();
-  $('inputs').innerHTML=html;
-  document.querySelectorAll('#modes .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===st.mode));}
+  const inc=!!st.inc[st.mode];
+  const bar=`<div class="incbar${inc?'':' off'}"><span>${inc?'✓ '+MODES[st.mode]+' — 차트·오더에 포함됨':MODES[st.mode]+' — 아직 포함 안 됨 (체크하면 자동 포함)'}</span>${inc?`<button class="btn sm" data-clrmode="${st.mode}">이 주호소 지우기</button>`:`<button class="btn sm" data-incmode="${st.mode}">기본값 그대로 포함</button>`}</div>`;
+  $('inputs').innerHTML=bar+html;
+  document.querySelectorAll('#modes .chip').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.mode===st.mode);b.classList.toggle('inc',!!st.inc[b.dataset.mode]);});}
 function band(){
   $('age').value=st.age||'';$('w').value=st.wt||'';$('d').value=st.days;
   document.querySelectorAll('[data-aq]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.aq===+st.age));
@@ -1116,18 +1139,35 @@ function band(){
   document.querySelectorAll('[data-dq]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.dq===st.days));
   document.querySelectorAll('[data-acid]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.acid===st.cfg.acid));
   $('s_amox').checked=st.cfg.amox;}
+// ---- 여러 주호소 합치기 ----
+const MORDA=['resp','gerd','gi','pain','uti','skin'];
+function runAll(c){
+  let ms=MORDA.filter(m=>st.inc[m]);const preview=!ms.length;if(preview)ms=[st.mode];
+  const R=ms.map(m=>({m,o:ENG[m](st.SM[m],c)}));
+  const multi=R.length>1,lab=m=>multi?MODES[m]+' · ':'',U=a=>[...new Set(a.filter(Boolean))];
+  const o={alerts:U(R.flatMap(r=>r.o.alerts)),warn:U(R.flatMap(r=>r.o.warn)),dx:R.flatMap(r=>r.o.dx.map(x=>lab(r.m)+x)),
+    axes:R.flatMap(r=>r.o.axes.map(([k,v])=>[lab(r.m)+k,v])),judge:U(R.flatMap(r=>r.o.judge.filter(x=>x!=='증상을 체크하세요'||!multi))),avoid:U(R.flatMap(r=>r.o.avoid)),
+    fu:U(R.flatMap(r=>r.o.fu)),A:R.flatMap(r=>r.o.A),F:U(R.flatMap(r=>r.o.F)),adv:U(R.flatMap(r=>r.o.adv))};
+  const prim=[],alt=[],RO={};
+  R.forEach(r=>r.o.rx.forEach(x=>{if(!x.alt&&!prim.includes(x.id)){prim.push(x.id);RO[x.id]=x.o;}}));
+  R.forEach(r=>r.o.rx.forEach(x=>{if(x.alt&&!prim.includes(x.id)&&!alt.includes(x.id)){alt.push(x.id);RO[x.id]=x.o;}}));
+  return {R,ms,preview,o,prim,alt,RO};}
+document.head.insertAdjacentHTML('beforeend','<style>#modes .chip.inc::after{content:" ✓";font-weight:700}.incbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:10px 0 4px;padding:6px 10px;border-radius:8px;background:var(--accent-weak);color:var(--accent);font-size:13px;font-weight:700}.incbar.off{background:var(--paper);color:var(--muted);font-weight:500;border:1px dashed var(--line)}.btn.sm{padding:4px 10px;font-size:12.5px;min-height:0}.incsum{font-size:12.5px;color:var(--muted);margin-bottom:6px}</style>');
 function render(){
   band();
   document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===st.tab));
   $('chartView').hidden=st.tab!=='chart';$('gojView').hidden=st.tab!=='goj';$('ptband').hidden=st.tab!=='chart';$('newpt').hidden=st.tab!=='chart';
   if(st.tab==='goj'){renderGoj();return;}
   renderInputs();$('ex').hidden=!st.example;
-  const c=ctx(),m=st.mode,Sx=S();let o;
-  try{o=ENG[m](Sx,c);}catch(e){$('alerts').innerHTML=`<div class="alert">계산 오류: ${esc(e.message)}</div>`;console.error(e);return;}
-  const prim=o.rx.filter(r=>!r.alt).map(r=>r.id), alt=o.rx.filter(r=>r.alt).map(r=>r.id), RO=Object.fromEntries(o.rx.map(r=>[r.id,r.o]));
-  const sel=[...new Set([...prim,...st.add[m]])].filter(x=>!st.rm[m].includes(x));
+  const c=ctx();let run;
+  try{run=runAll(c);}catch(e){$('alerts').innerHTML=`<div class="alert">계산 오류: ${esc(e.message)}</div>`;console.error(e);return;}
+  const {o,prim,alt,RO}=run;
+  const sel=[...new Set([...prim,...st.add])].filter(x=>!st.rm.includes(x));
+  const abxN=sel.filter(id=>ADm[id].g==='항생제'&&!(ADm[id].calc(c)||{}).block).length;if(abxN>=2)o.warn.unshift('항생제 '+abxN+'가지 — 한 가지로 함께 덮을 수 있는지 확인');
+  const nsN=sel.filter(id=>['ibu','nap','acec','cele'].includes(id)).length;if(nsN>=2)o.warn.unshift('NSAID '+nsN+'가지 — 하나만');
+  if(run.ms.includes('gerd')&&nsN&&run.ms.length>1)o.warn.unshift('속쓰림·소화 증상이 있는데 NSAID 처방 — 아세트아미노펜 우선 고려 (PPI를 함께 쓰면 위험 감소)');
   const pw=[];if(!c.age)pw.push('나이를 넣으면 연령 기준(45·50·60·65세)이 반영됩니다.');if(st.flags.includes('임신')&&st.sex==='남')pw.push('성별이 남성이라 임신 표시는 무시합니다.');
-  $('alerts').innerHTML=o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+[...o.warn,...pw].map(x=>`<div class="warn">${esc(x)}</div>`).join('');
+  $('alerts').innerHTML=`<div class="incsum">${run.preview?'미리보기: '+MODES[st.mode]+' (체크하면 포함)':'포함된 주호소: '+run.ms.map(m=>MODES[m]).join(' + ')}</div>`+o.alerts.map(x=>`<div class="alert">${esc(x)}</div>`).join('')+[...o.warn,...pw].map(x=>`<div class="warn">${esc(x)}</div>`).join('');
   const lines=[],pl=[];
   $('orders').innerHTML=sel.length?sel.map(id=>{const d=ADm[id];const r=doseWith(d,c,RO[id],st.days,st.ov[id]);const tag=`<span class="blk">${esc(d.g)}</span>`;const isRec=prim.includes(id);
     if(r.block)return `<div class="ln off">${tag}<div class="nm">${esc(d.name)}</div><div class="val">${esc(r.block)}</div><div class="ctl"><button class="x" data-rmid="${id}">빼기 ×</button></div></div>`;
@@ -1136,10 +1176,10 @@ function render(){
     const sub=[per,r.note].filter(Boolean).join(' · ');
     return `<div class="ln">${tag}<div class="nm">${esc(d.name)}${isRec?'':' <span class="me">직접 추가</span>'}</div><div class="val">${esc(s)}</div><div class="sub">${esc(sub)}</div>${r.warn.map(x=>`<div class="w">${esc(x)}</div>`).join('')}<div class="ctl">${r.ext?'외용·흡입·분무':`일수 <input data-ov="${id}" value="${r.days}" inputmode="numeric" aria-label="${esc(d.name)} 일수">${r.fixed?'<span>권장 기간</span>':''}`}<button class="x" data-rmid="${id}">빼기 ×</button></div></div>`;
   }).join(''):`<div class="empty">추천 약이 없습니다. 필요하면 아래 “약 직접 추가”에서 고르세요.</div>`;
-  const altList=[...alt.filter(x=>!sel.includes(x)),...st.rm[m].filter(x=>prim.includes(x))];
+  const altList=[...alt.filter(x=>!sel.includes(x)),...st.rm.filter(x=>prim.includes(x))];
   $('alts').innerHTML=altList.length?`<span class="hint">대안·선택:</span>`+altList.map(id=>{const bl=(ADm[id].calc(c)||{}).block;return `<button class="chip${bl?' blocked':''}" data-addid="${id}"${bl?` title="${esc(bl)}"`:''}>+ ${esc(ADm[id].chip)}</button>`}).join(''):'';
   $('advice').innerHTML=o.adv.length?`<h3>생활·처치 안내</h3><ul>${o.adv.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
-  const chart=renderA(m,Sx,c,o,st.sex==='남'?st.flags.filter(f=>f!=='임신'):st.flags)+'\n\n[평가 및 계획]\nA> '+(o.A.join('; ')||'-')+'\nP> '+(pl.join('\n   ')||'-')+'\nF/U> '+(o.F.join(' ')||'-');
+  const chart=assembleA(run.R.map(r=>partsA(r.m,st.SM[r.m],c,r.o)),c,st.sex==='남'?st.flags.filter(f=>f!=='임신'):st.flags)+'\n\n[평가 및 계획]\nA> '+(o.A.join('; ')||'-')+'\nP> '+(pl.join('\n   ')||'-')+'\nF/U> '+(o.F.join(' / ')||'-');
   LAST={emr:chart,orders:lines.join('\n')};
   $('emr').textContent=chart;$('ordtxt').textContent=LAST.orders||'—';
   $('dx').innerHTML=o.dx.map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="mu">—</li>';
@@ -1188,10 +1228,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   else if(q.fl){st.flags=st.flags.includes(q.fl)?st.flags.filter(x=>x!==q.fl):[...st.flags,q.fl];}
   else if(q.dq){st.days=+q.dq;saveCfg();}
   else if(q.acid){st.cfg.acid=q.acid;saveCfg();}
-  else if(q.addid){const m=st.mode;st.rm[m]=st.rm[m].filter(x=>x!==q.addid);if(!st.add[m].includes(q.addid))st.add[m].push(q.addid);toast('추가됨');}
-  else if(q.rmid){const m=st.mode;st.add[m]=st.add[m].filter(x=>x!==q.rmid);if(!st.rm[m].includes(q.rmid))st.rm[m].push(q.rmid);delete st.ov[q.rmid];}
+  else if(q.addid){st.rm=st.rm.filter(x=>x!==q.addid);if(!st.add.includes(q.addid))st.add.push(q.addid);toast('추가됨');}
+  else if(q.rmid){st.add=st.add.filter(x=>x!==q.rmid);if(!st.rm.includes(q.rmid))st.rm.push(q.rmid);delete st.ov[q.rmid];}
+  else if(q.incmode){st.inc[q.incmode]=true;}
+  else if(q.clrmode){const m=q.clrmode;st.SM[m]=clone(DEF[m]);st.inc[m]=false;toast(MODES[m]+' 지움');}
   else chg=false;
-  if(chg){if(!q.dq&&!q.acid&&!q.tab&&!q.gm&&!q.mode)st.example=false;render();}});
+  if(chg){if(q.k||q.ak||q.sk)st.inc[st.mode]=true;if(!q.dq&&!q.acid&&!q.tab&&!q.gm&&!q.mode)st.example=false;render();}});
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='age'){st.age=parseInt(t.value)||'';st.example=false;keep(t);}
   else if(t.id==='w'){st.wt=parseFloat(t.value)||'';keep(t);}
@@ -1203,6 +1245,6 @@ async function copy(t,m){try{await navigator.clipboard.writeText(t);toast(m)}cat
 $('cEmr').onclick=()=>copy(LAST.emr,'EMR 차트 복사됨');
 $('cOrd').onclick=()=>copy(LAST.orders,'오더 복사됨');
 $('cAll').onclick=()=>copy(LAST.emr+'\n\n'+LAST.orders,'차트 + 오더 복사됨');
-$('newpt').onclick=()=>{Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);st.add[m]=[];st.rm[m]=[];});st.ov={};st.age='';st.sex='';st.wt='';st.renal='정상';st.flags=[];st.example=false;st.tab='chart';render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
+$('newpt').onclick=()=>{Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});st.add=[];st.rm=[];st.inc={};st.ov={};st.age='';st.sex='';st.wt='';st.renal='정상';st.flags=[];st.example=false;st.tab='chart';render();window.scrollTo({top:0,behavior:'smooth'});toast('새 환자');};
 buildStatic();render();
 </script></body></html>

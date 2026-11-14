@@ -1191,7 +1191,7 @@ uti:[
  ['sec','중증 소견'],['c','sev','',['처짐·기면','탈수','호흡곤란·함몰'],1]]
 };
 const DEF={
- resp:{cx2:[],visit:'초진',day:'',course:'그대로',fever:'없음',rhin:'없음',spu:'없음',spuc:'',spuv:'',spux:[],suct:'안 함',sAmt:'',sCol:'',sVis:'',sx:[],rhinx:[],nose:[],cough:'없음',ctime:[],abx:'없음',flags:[],muc:'안 봄',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],sev:[]},
+ resp:{cx2:[],visit:'',day:'',course:'',fever:'없음',rhin:'없음',spu:'없음',spuc:'',spuv:'',spux:[],suct:'안 함',sAmt:'',sCol:'',sVis:'',sx:[],rhinx:[],nose:[],cough:'없음',ctime:[],abx:'없음',flags:[],muc:'안 봄',throat:'정상',ln:'없음',tmr:'정상',tml:'정상',conj:'없음',lung:['clear'],sev:[]},
  gi:{_dayc:'',vomit:'없음',diarr:'없음',color:[],fever:'없음',pain:'없음',abdtd:'없음',flags:[],look:'정상',eyes:'정상',muc:'촉촉',tears:'있음',lastvoid:'6시간 이내',ors:'안 해봄',contact:[],sev:[]},
  fever:{fdays:'',tmax:'',after:'해열 후 잘 놂',intake:'평소대로',urine:'정상',source:[],ua:'안 함',vacc:'완료',seizure:'없음',flu:'해당 없음',chronic:[],kawa:[],sev:[]},
  rash:{_dayc:'',order:'열 없음',shape:[],move:'',site:[],itch:'없음',newdrug:'없음',expo:'없음',joint:'없음',atopy:'아님',resp:['없음'],mouth:[],sev:[]},
@@ -1200,13 +1200,13 @@ const DEF={
 const FVT=['37.5–37.9','38.0–38.9','39.0–39.9','40 이상'],FVD=['1일','2일','3일','4일','5일+'],FVA=['변화 없음','간격 벌어짐','간격 짧아짐'];
 const MODES={resp:'감기·호흡기',gi:'구토·설사',fever:'발열',rash:'발진',uti:'소변'};
 const clone=o=>JSON.parse(JSON.stringify(o));
-let st={mode:'resp',w:15,age:'3세',sex:'',hx:[],days:3,SM:{},add:[],rm:[],ov:{},inc:{resp:true},FV:{on:false,tmax:'',fdays:'',antiint:''},step:0.1,
-  conc:{...CONC_DEF},stock:{amox:false,clinda:false,dexa:false},example:true};
+let st={mode:'resp',w:0,age:'',sex:'',hx:[],days:3,SM:{},add:[],rm:[],ov:{},inc:{},FV:{on:false,tmax:'',fdays:'',antiint:''},step:0.1,
+  conc:{...CONC_DEF},stock:{amox:false,clinda:false,dexa:false},example:false};
 Object.keys(MODES).forEach(m=>{st.SM[m]=clone(DEF[m]);});
 try{const s=JSON.parse(localStorage.getItem('rxuni_cfg')||'{}');if(s.offl)Object.keys(OFFL).forEach(k=>{if(s.offl[k]){OFFL[k].label=+s.offl[k].label||OFFL[k].label;OFFL[k].floor=+s.offl[k].floor||OFFL[k].floor;}});if(s.conc)st.conc={...st.conc,...s.conc};if(s.stock)st.stock={...st.stock,...s.stock};if(s.step)st.step=s.step;if(s.days)st.days=s.days;}catch(e){}
 const saveCfg=()=>{try{localStorage.setItem('rxuni_cfg',JSON.stringify({offl:OFFL,conc:st.conc,stock:st.stock,step:st.step,days:st.days}))}catch(e){}};
 // 예시 증례: 15 kg 3세, 후비루형 기침 D6
-Object.assign(st.SM.resp,{day:'D6',fever:'없음',rhin:'노랑·초록',rhinx:['끈적함','후비루'],nose:['코막힘'],cough:'젖은',ctime:['눕자마자','아침 가래'],cdur:'2주 미만',muc:'선홍·부종'});
+
 const S=()=>st.SM[st.mode];
 const ageM=()=>{const a=AGES.find(x=>x[0]===st.age);return a?a[1]:null};
 function ctx(){const m=ageM();const lbl=m==null?'':m<1?'신생아':m<6?'1~5개월':m<12?'6~11개월':`${Math.min(15,Math.floor(m/12))}세`;
